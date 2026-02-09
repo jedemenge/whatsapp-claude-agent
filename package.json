@@ -30,7 +30,7 @@
         "build:exe:macos": "bun build src/index.ts --compile --minify --sourcemap --target=bun-darwin-arm64 --outfile dist/whatsapp-claude-agent-darwin-arm64",
         "build:exe:macos-x64": "bun build src/index.ts --compile --minify --sourcemap --target=bun-darwin-x64 --outfile dist/whatsapp-claude-agent-darwin-x64",
         "build:exe:windows": "bun build src/index.ts --compile --minify --sourcemap --target=bun-windows-x64 --outfile dist/whatsapp-claude-agent-windows-x64.exe",
-        "build:all": "bun run build:exe:linux && bun run build:exe:macos && bun run build:exe:macos-x64 && bun run build:exe:windows",
+        "build:all": "bun run --parallel build:exe:linux build:exe:macos build:exe:macos-x64 build:exe:windows",
         "tsc": "tsc --noEmit",
         "tsc:watch": "tsc --noEmit --watch",
         "tscw": "bun run tsc:watch",
