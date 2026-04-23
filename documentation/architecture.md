@@ -21,6 +21,12 @@ WhatsApp-Claude-Agent bridges WhatsApp with Claude Code via the Claude Agent SDK
 - Supports group mode (`--join-whatsapp-group`) or private message mode
 - Emits typed events to main orchestrator
 - Chunks long responses into multiple WhatsApp messages
+- **Reconnect-safe send path**: `sendMessage()` awaits a `waitUntilReady`
+  primitive (bridged by `readyWaiters`) so calls that land in the 1-2 s
+  reconnect window no longer throw synchronously. Tunable via
+  `sendReadyTimeoutMs`. Baileys keepalive interval tightened via
+  `keepAliveIntervalMs` (default 15 s vs Baileys' 30 s) to reduce 408
+  disconnect frequency under Bun's `ws` shim.
 
 ### ConversationManager (`src/conversation/manager.ts`)
 

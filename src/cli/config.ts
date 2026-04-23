@@ -37,6 +37,9 @@ type SaveableConfigKey =
     | 'systemPrompt'
     | 'systemPromptAppend'
     | 'settingSources'
+    | 'keepAliveIntervalMs'
+    | 'sendReadyTimeoutMs'
+    | 'suppressStartupAnnouncement'
 
 const SAVEABLE_KEYS: SaveableConfigKey[] = [
     'whitelist',
@@ -51,7 +54,10 @@ const SAVEABLE_KEYS: SaveableConfigKey[] = [
     'agentName',
     'systemPrompt',
     'systemPromptAppend',
-    'settingSources'
+    'settingSources',
+    'keepAliveIntervalMs',
+    'sendReadyTimeoutMs',
+    'suppressStartupAnnouncement'
 ]
 
 /**
@@ -98,6 +104,9 @@ export interface ConfigInitOptions {
     systemPrompt?: string
     systemPromptAppend?: string
     settingSources?: string[]
+    keepAliveIntervalMs?: number
+    sendReadyTimeoutMs?: number
+    suppressStartupAnnouncement?: boolean
 }
 
 /**
@@ -138,6 +147,15 @@ export function generateConfigTemplate(options?: ConfigInitOptions): string {
     }
     if (options?.settingSources && options.settingSources.length > 0) {
         template['settingSources'] = options.settingSources
+    }
+    if (options?.keepAliveIntervalMs !== undefined) {
+        template['keepAliveIntervalMs'] = options.keepAliveIntervalMs
+    }
+    if (options?.sendReadyTimeoutMs !== undefined) {
+        template['sendReadyTimeoutMs'] = options.sendReadyTimeoutMs
+    }
+    if (options?.suppressStartupAnnouncement !== undefined) {
+        template['suppressStartupAnnouncement'] = options.suppressStartupAnnouncement
     }
 
     return JSON.stringify(template, null, 4)
@@ -184,6 +202,9 @@ export interface CLIOptions {
     agentName?: string
     joinWhatsappGroup?: string
     allowAllGroupParticipants?: boolean
+    keepAliveInterval?: string
+    sendReadyTimeout?: string
+    suppressStartupAnnouncement?: boolean
 }
 
 export function parseConfig(cliOptions: CLIOptions): Config {
@@ -243,7 +264,15 @@ export function parseConfig(cliOptions: CLIOptions): Config {
         agentIdentity,
         // Runtime-only: group join (never from file config)
         joinWhatsAppGroup: cliOptions.joinWhatsappGroup,
-        allowAllGroupParticipants: cliOptions.allowAllGroupParticipants
+        allowAllGroupParticipants: cliOptions.allowAllGroupParticipants,
+        keepAliveIntervalMs: cliOptions.keepAliveInterval
+            ? parseInt(cliOptions.keepAliveInterval, 10)
+            : fileConfig.keepAliveIntervalMs,
+        sendReadyTimeoutMs: cliOptions.sendReadyTimeout
+            ? parseInt(cliOptions.sendReadyTimeout, 10)
+            : fileConfig.sendReadyTimeoutMs,
+        suppressStartupAnnouncement:
+            cliOptions.suppressStartupAnnouncement ?? fileConfig.suppressStartupAnnouncement
     }
 
     // Filter out undefined values

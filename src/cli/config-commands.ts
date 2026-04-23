@@ -24,7 +24,10 @@ const VALID_KEYS: ConfigKey[] = [
     'agentName',
     'systemPrompt',
     'systemPromptAppend',
-    'settingSources'
+    'settingSources',
+    'keepAliveIntervalMs',
+    'sendReadyTimeoutMs',
+    'suppressStartupAnnouncement'
 ]
 
 function getConfigPath(options: { config?: string; directory?: string }): string {
@@ -48,10 +51,13 @@ function parseValue(key: ConfigKey, value: string): unknown {
 
         case 'maxTurns':
         case 'missedThresholdMins':
+        case 'keepAliveIntervalMs':
+        case 'sendReadyTimeoutMs':
             return parseInt(value, 10)
 
         case 'verbose':
         case 'processMissed':
+        case 'suppressStartupAnnouncement':
             return value === 'true' || value === '1'
 
         case 'model':
@@ -231,6 +237,12 @@ export function createConfigCommand(): Command {
         .option('--system-prompt <prompt>', 'Custom system prompt for Claude')
         .option('--system-prompt-append <text>', 'Text to append to the default system prompt')
         .option('--load-claude-md <sources>', 'Comma-separated list of CLAUDE.md sources')
+        .option('--keep-alive-interval <ms>', 'Baileys keepalive IQ ping interval (ms)')
+        .option(
+            '--send-ready-timeout <ms>',
+            'Timeout (ms) waiting for socket to be ready in sendMessage'
+        )
+        .option('--suppress-startup-announcement', 'Skip the "Now online!" startup announcement')
         .action((options, cmd) => {
             const parentOpts = cmd.parent.opts()
             const configDir = parentOpts.directory || process.cwd()
@@ -287,6 +299,15 @@ export function createConfigCommand(): Command {
                 initOptions.settingSources = options.loadClaudeMd
                     .split(',')
                     .map((s: string) => s.trim())
+            }
+            if (options.keepAliveInterval) {
+                initOptions.keepAliveIntervalMs = parseInt(options.keepAliveInterval, 10)
+            }
+            if (options.sendReadyTimeout) {
+                initOptions.sendReadyTimeoutMs = parseInt(options.sendReadyTimeout, 10)
+            }
+            if (options.suppressStartupAnnouncement !== undefined) {
+                initOptions.suppressStartupAnnouncement = options.suppressStartupAnnouncement
             }
 
             const template = generateConfigTemplate(initOptions)

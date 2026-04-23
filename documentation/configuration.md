@@ -39,7 +39,7 @@ whatsapp-claude-agent config -d /path/to/project show
 whatsapp-claude-agent config -c /custom/path.json set model haiku
 ```
 
-Valid keys for set/get: whitelist, directory, mode, sessionPath, model, maxTurns, processMissed, missedThresholdMins, verbose, agentName, systemPrompt, systemPromptAppend, settingSources
+Valid keys for set/get: whitelist, directory, mode, sessionPath, model, maxTurns, processMissed, missedThresholdMins, verbose, agentName, systemPrompt, systemPromptAppend, settingSources, keepAliveIntervalMs, sendReadyTimeoutMs, suppressStartupAnnouncement
 
 ## Sources (Priority Order)
 
@@ -83,31 +83,43 @@ ConfigSchema = z.object({
     agentName: z.string().optional(), // Custom name (overrides generated)
     agentIdentity: AgentIdentitySchema, // Full identity with components
     joinWhatsAppGroup: z.string().optional(),
-    allowAllGroupParticipants: z.boolean().default(false)
+    allowAllGroupParticipants: z.boolean().default(false),
+    keepAliveIntervalMs: z.number().int().positive().default(15000),
+    sendReadyTimeoutMs: z.number().int().nonnegative().default(15000),
+    suppressStartupAnnouncement: z.boolean().default(false)
 })
 ```
 
+### Reconnect hardening options
+
+- **`keepAliveIntervalMs`** (default `15000`) — interval for the Baileys application-layer keepalive ping (IQ `ping`). Baileys' own default is 30000; the lower value reduces 408 disconnect frequency observed on Bun's `ws` shim.
+- **`sendReadyTimeoutMs`** (default `15000`) — how long `WhatsAppClient.sendMessage()` waits for the socket to come back during a reconnect window before it gives up. Set to `0` to revert to the legacy "throw immediately" behaviour. When a send times out the outer boundary in `index.ts` logs the undelivered text and continues — the process does NOT crash.
+- **`suppressStartupAnnouncement`** (default `false`) — skips the "Now online!" message on startup. Reconnects never emit the announcement regardless of this flag (fix for the spam seen under process supervisors).
+
 ## CLI to Config Mapping
 
-| CLI                              | Config Property             |
-| -------------------------------- | --------------------------- |
-| `-d, --directory`                | `directory`                 |
-| `-m, --mode`                     | `mode`                      |
-| `-w, --whitelist`                | `whitelist`                 |
-| `-s, --session`                  | `sessionPath`               |
-| `--model`                        | `model`                     |
-| `--max-turns`                    | `maxTurns`                  |
-| `--process-missed`               | `processMissed`             |
-| `--missed-threshold`             | `missedThresholdMins`       |
-| `-v, --verbose`                  | `verbose`                   |
-| `--system-prompt`                | `systemPrompt`              |
-| `--system-prompt-append`         | `systemPromptAppend`        |
-| `--load-claude-md`               | `settingSources`            |
-| `--resume`                       | `resumeSessionId`           |
-| `--fork`                         | `forkSession`               |
-| `--agent-name`                   | `agentName`                 |
-| `--join-whatsapp-group`          | `joinWhatsAppGroup`         |
-| `--allow-all-group-participants` | `allowAllGroupParticipants` |
+| CLI                               | Config Property               |
+| --------------------------------- | ----------------------------- |
+| `-d, --directory`                 | `directory`                   |
+| `-m, --mode`                      | `mode`                        |
+| `-w, --whitelist`                 | `whitelist`                   |
+| `-s, --session`                   | `sessionPath`                 |
+| `--model`                         | `model`                       |
+| `--max-turns`                     | `maxTurns`                    |
+| `--process-missed`                | `processMissed`               |
+| `--missed-threshold`              | `missedThresholdMins`         |
+| `-v, --verbose`                   | `verbose`                     |
+| `--system-prompt`                 | `systemPrompt`                |
+| `--system-prompt-append`          | `systemPromptAppend`          |
+| `--load-claude-md`                | `settingSources`              |
+| `--resume`                        | `resumeSessionId`             |
+| `--fork`                          | `forkSession`                 |
+| `--agent-name`                    | `agentName`                   |
+| `--join-whatsapp-group`           | `joinWhatsAppGroup`           |
+| `--allow-all-group-participants`  | `allowAllGroupParticipants`   |
+| `--keep-alive-interval`           | `keepAliveIntervalMs`         |
+| `--send-ready-timeout`            | `sendReadyTimeoutMs`          |
+| `--suppress-startup-announcement` | `suppressStartupAnnouncement` |
 
 ## Save/Load Functions
 
@@ -135,6 +147,7 @@ Only persistent properties saved to file (defined in `SAVEABLE_KEYS` in `src/cli
 - whitelist, directory, mode, sessionPath, model, maxTurns
 - processMissed, missedThresholdMins, verbose, agentName
 - systemPrompt, systemPromptAppend, settingSources
+- keepAliveIntervalMs, sendReadyTimeoutMs, suppressStartupAnnouncement
 
 Runtime-only (not saved):
 

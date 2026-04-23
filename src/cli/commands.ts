@@ -97,6 +97,19 @@ Config Management (without running agent):
             false
         )
         .option(
+            '--keep-alive-interval <ms>',
+            'Interval (ms) for the Baileys keepalive IQ ping. Lower values reduce 408 disconnect frequency on Bun. Default: 15000.'
+        )
+        .option(
+            '--send-ready-timeout <ms>',
+            'How long sendMessage waits for the socket to come back during a reconnect window before failing. Default: 15000.'
+        )
+        .option(
+            '--suppress-startup-announcement',
+            'Do not post the "Now online!" message on startup. Reconnects never trigger it regardless of this flag.',
+            false
+        )
+        .option(
             '-u, --update',
             'Check for updates and install the latest version. All other options are ignored when this flag is used.'
         )

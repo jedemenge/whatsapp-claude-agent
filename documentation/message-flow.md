@@ -15,10 +15,16 @@ main()
        ▼
 WhatsApp 'ready' event
   ├─ If --join-whatsapp-group: joinGroup(inviteCode)
-  └─ sendStartupAnnouncement()
+  └─ If !hasAnnouncedStartup && !config.suppressStartupAnnouncement:
+     sendStartupAnnouncement()
        ├─ Group mode: send to group JID
        └─ Private mode: send to each whitelisted number
 ```
+
+Subsequent `'ready'` events (triggered after every reconnect) log a
+"reconnected" message and do NOT re-send the announcement. The one-shot
+gate `hasAnnouncedStartup` in `index.ts` enforces this. The opt-in
+`suppressStartupAnnouncement` config additionally skips the first one.
 
 Startup announcement (private mode):
 
@@ -193,15 +199,36 @@ Reply with *@{name} Y* to allow or *@{name} N* to deny.
 sendResponse(text)
        │
        ▼
-index.ts sendResponse callback
+index.ts sendResponse callback (try/catch boundary)
   └─ whatsapp.sendMessage(jid, text)
        │
        ▼
 WhatsAppClient.sendMessage()
+  ├─ await waitUntilReady(sendReadyTimeoutMs)   ← bridges reconnect window
   ├─ formatMessageWithAgentName() → "[🤖 Name@host folder/]\ntext"
   ├─ chunkMessage() → splits if > 4000 chars
   └─ sock.sendMessage() for each chunk
 ```
+
+### Reconnect-safe send
+
+`WhatsAppClient.sendMessage()` used to throw `Error("WhatsApp client not ready")`
+synchronously whenever the socket was mid-reconnect. Since a 408 disconnect
+followed by a fast reconnect is routine on Bun, this race would crash the
+process whenever a message arrived during the ~1-2 s window.
+
+The pipeline now:
+
+1. `sendMessage()` awaits `waitUntilReady(config.sendReadyTimeoutMs)` which
+   parks the caller on an internal list of `readyWaiters` and resolves when
+   `connection === 'open'` fires. Default wait: 15 s.
+2. If the wait times out, `WhatsAppNotReadyError` is thrown.
+3. The outer `sendResponse` closure in `index.ts` wraps the call in try/catch.
+   A failed delivery is logged (full text truncated to 200 chars) and the
+   request path continues — nothing escapes to the top of the event loop.
+4. `ConversationManager.processWithClaude()` tracks `primarySendAttempted`
+   so its catch branch never re-invokes `sendResponse` on the same dead
+   socket (the double-throw that previously brought the process down).
 
 ## Session Management
 

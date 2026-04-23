@@ -92,6 +92,12 @@ async function main() {
     // Track the current message sender for permission requests
     let currentSenderJid: string | null = null
 
+    // One-shot: the 'ready' event fires on every successful reconnect, but
+    // the "Now online!" announcement should only fire once per process
+    // lifetime — otherwise reconnects (and restart loops under a process
+    // supervisor) spam the group/whitelist.
+    let hasAnnouncedStartup = false
+
     // Set up event handlers
     whatsapp.on('event', async (event: AgentEvent) => {
         switch (event.type) {
@@ -104,9 +110,17 @@ async function main() {
                 break
 
             case 'ready':
-                logger.info('WhatsApp client ready. Listening for messages...')
-                // Send startup announcement to all whitelisted numbers
-                await sendStartupAnnouncement()
+                if (hasAnnouncedStartup) {
+                    logger.info('WhatsApp client reconnected. Listening for messages...')
+                } else {
+                    logger.info('WhatsApp client ready. Listening for messages...')
+                    hasAnnouncedStartup = true
+                    if (config.suppressStartupAnnouncement) {
+                        logger.debug('Startup announcement suppressed by config')
+                    } else {
+                        await sendStartupAnnouncement()
+                    }
+                }
                 break
 
             case 'message':
@@ -192,11 +206,30 @@ Type */help* for available commands.`
 
         await conversation.handleMessage(
             message,
+            // Boundary: this is the outermost await for the reply path. If the
+            // socket is down (reconnect window, permanent close, etc.) we do
+            // NOT re-throw — otherwise the rejection bubbles to main() and
+            // crashes the process. Log the full text so nothing silently
+            // disappears; operators can replay from the log if needed.
             async (text) => {
-                await whatsapp.sendMessage(message.from, text)
+                try {
+                    await whatsapp.sendMessage(message.from, text)
+                } catch (error) {
+                    const errorMsg = error instanceof Error ? error.message : String(error)
+                    logger.error(
+                        `Failed to deliver reply to ${message.from}: ${errorMsg}. ` +
+                            `Undelivered text (first 200 chars): "${text.slice(0, 200)}"`
+                    )
+                }
             },
             async () => {
-                await whatsapp.sendTyping(message.from)
+                // Typing indicators are fire-and-forget; a reconnect mid-typing
+                // shouldn't bring down the message pipeline either.
+                try {
+                    await whatsapp.sendTyping(message.from)
+                } catch (error) {
+                    logger.debug(`sendTyping failed (non-fatal): ${error}`)
+                }
             }
         )
 

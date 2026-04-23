@@ -24,6 +24,18 @@ export interface WhatsAppClientEvents {
     event: (event: AgentEvent) => void
 }
 
+/**
+ * Thrown by sendMessage() when the socket does not become ready within
+ * sendReadyTimeoutMs. Callers at the outer boundary (index.ts) should catch
+ * this and log the message rather than letting it crash the process.
+ */
+export class WhatsAppNotReadyError extends Error {
+    constructor(message = 'WhatsApp client not ready') {
+        super(message)
+        this.name = 'WhatsAppNotReadyError'
+    }
+}
+
 export class WhatsAppClient extends EventEmitter {
     private socket: WASocket | null = null
     private authState: AuthState | null = null
@@ -33,6 +45,9 @@ export class WhatsAppClient extends EventEmitter {
     private startTime: Date
     private sentMessageIds: Set<string> = new Set() // Track messages we send to avoid loops
     private groupConfig: GroupConfig | null = null // Group mode configuration
+    // Callbacks waiting for the next 'open' event. Used by waitUntilReady() so
+    // sendMessage() can bridge the short reconnect window instead of throwing.
+    private readyWaiters: Array<() => void> = []
 
     constructor(config: Config, logger: Logger) {
         super()
@@ -65,7 +80,12 @@ export class WhatsAppClient extends EventEmitter {
             logger: baileysLogger,
             browser: ['WhatsApp-Claude-Agent', 'Desktop', '1.0.0'],
             generateHighQualityLinkPreview: false,
-            syncFullHistory: false
+            syncFullHistory: false,
+            // Tighten keepalive vs Baileys' 30s default. On Bun's ws shim the
+            // server tends to drop the socket with status 408 after 20-25 min;
+            // halving the ping interval reduces the window in which the
+            // liveness check ("diff > keepAliveIntervalMs + 5000") fires.
+            keepAliveIntervalMs: this.config.keepAliveIntervalMs
         })
 
         this.setupEventHandlers()
@@ -112,6 +132,11 @@ export class WhatsAppClient extends EventEmitter {
                 this.logger.info('WhatsApp connection established!')
                 this.isReady = true
                 this.emit('event', { type: 'authenticated' } as AgentEvent)
+
+                // Release any sendMessage() calls parked by waitUntilReady() during
+                // the reconnect window. Drain the list before calling so a waiter
+                // that immediately re-checks readiness sees the fresh state.
+                this.flushReadyWaiters()
 
                 // Join group if requested (only on first connection, not reconnects)
                 if (this.config.joinWhatsAppGroup && !this.groupConfig) {
@@ -246,9 +271,59 @@ export class WhatsAppClient extends EventEmitter {
         this.emit('event', { type: 'message', message: msg } as AgentEvent)
     }
 
+    /**
+     * Resolve immediately if the socket is ready; otherwise park the caller
+     * until the next 'open' event or reject after timeoutMs. Bridges the
+     * short (~1-2s) reconnect window after a 408 so callers no longer crash.
+     *
+     * Set timeoutMs to 0 to disable waiting entirely (old throw-immediately
+     * behaviour).
+     */
+    private waitUntilReady(timeoutMs: number): Promise<void> {
+        if (this.isReady && this.socket) return Promise.resolve()
+        if (timeoutMs <= 0) return Promise.reject(new WhatsAppNotReadyError())
+
+        return new Promise<void>((resolve, reject) => {
+            let settled = false
+            const onReady = () => {
+                if (settled) return
+                settled = true
+                clearTimeout(timer)
+                resolve()
+            }
+            const timer = setTimeout(() => {
+                if (settled) return
+                settled = true
+                // Best-effort remove this waiter so flushReadyWaiters() doesn't
+                // call a stale resolver.
+                const idx = this.readyWaiters.indexOf(onReady)
+                if (idx !== -1) this.readyWaiters.splice(idx, 1)
+                reject(new WhatsAppNotReadyError(`WhatsApp client not ready after ${timeoutMs}ms`))
+            }, timeoutMs)
+            this.readyWaiters.push(onReady)
+        })
+    }
+
+    /** Resolve all parked waitUntilReady() callers on the next 'open' event. */
+    private flushReadyWaiters(): void {
+        const waiters = this.readyWaiters
+        this.readyWaiters = []
+        for (const waiter of waiters) {
+            try {
+                waiter()
+            } catch (err) {
+                this.logger.warn(`Ready waiter threw: ${err}`)
+            }
+        }
+    }
+
     async sendMessage(to: string, text: string): Promise<void> {
+        // Bridge short reconnect windows instead of throwing immediately. If
+        // the socket is already ready this is a no-op.
+        await this.waitUntilReady(this.config.sendReadyTimeoutMs)
         if (!this.socket || !this.isReady) {
-            throw new Error('WhatsApp client not ready')
+            // Defensive fallback: waitUntilReady resolved but state flipped.
+            throw new WhatsAppNotReadyError()
         }
 
         // Prefix message with agent identity

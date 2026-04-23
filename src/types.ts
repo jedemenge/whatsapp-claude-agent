@@ -49,7 +49,10 @@ export const ConfigSchema = z.object({
     agentName: z.string().optional(), // Custom agent name (if set by user)
     agentIdentity: AgentIdentitySchema, // Full agent identity with components
     joinWhatsAppGroup: z.string().optional(), // Runtime-only: WhatsApp group to join
-    allowAllGroupParticipants: z.boolean().default(false) // Runtime-only: bypass whitelist in group mode
+    allowAllGroupParticipants: z.boolean().default(false), // Runtime-only: bypass whitelist in group mode
+    keepAliveIntervalMs: z.number().int().positive().default(15000), // Baileys keepalive IQ ping interval; lower = less chance of 408 timeouts on Bun
+    sendReadyTimeoutMs: z.number().int().nonnegative().default(15000), // How long sendMessage() waits for the socket to become ready during a reconnect window
+    suppressStartupAnnouncement: z.boolean().default(false) // Skip the "Now online!" announcement even on first ready
 })
 
 export type Config = z.infer<typeof ConfigSchema>

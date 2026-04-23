@@ -127,7 +127,10 @@ describe('config file utilities', () => {
                 forkSession: false,
                 agentName: 'Test Agent',
                 agentIdentity: { name: 'Test Agent', host: 'testhost', folder: 'testdir' },
-                allowAllGroupParticipants: false
+                allowAllGroupParticipants: false,
+                keepAliveIntervalMs: 15000,
+                sendReadyTimeoutMs: 15000,
+                suppressStartupAnnouncement: false
             }
 
             const savedPath = saveConfigFile(config, configPath)
@@ -153,7 +156,10 @@ describe('config file utilities', () => {
                 forkSession: false,
                 agentName: 'Test Agent',
                 agentIdentity: { name: 'Test Agent', host: 'testhost', folder: 'testdir' },
-                allowAllGroupParticipants: false
+                allowAllGroupParticipants: false,
+                keepAliveIntervalMs: 15000,
+                sendReadyTimeoutMs: 15000,
+                suppressStartupAnnouncement: false
             }
 
             const savedPath = saveConfigFile(config)
@@ -176,7 +182,10 @@ describe('config file utilities', () => {
                 forkSession: false,
                 agentName: 'Test Agent',
                 agentIdentity: { name: 'Test Agent', host: 'testhost', folder: 'testdir' },
-                allowAllGroupParticipants: false
+                allowAllGroupParticipants: false,
+                keepAliveIntervalMs: 15000,
+                sendReadyTimeoutMs: 15000,
+                suppressStartupAnnouncement: false
             }
 
             saveConfigFile(config, nestedPath)
@@ -199,7 +208,10 @@ describe('config file utilities', () => {
                 resumeSessionId: 'some-session-id', // runtime-only
                 agentName: 'Test Agent',
                 agentIdentity: { name: 'Test Agent', host: 'testhost', folder: 'testdir' },
-                allowAllGroupParticipants: true // runtime-only
+                allowAllGroupParticipants: true, // runtime-only
+                keepAliveIntervalMs: 15000,
+                sendReadyTimeoutMs: 15000,
+                suppressStartupAnnouncement: false
             }
 
             saveConfigFile(config, configPath)
@@ -224,7 +236,10 @@ describe('config file utilities', () => {
                 forkSession: false,
                 agentName: 'Test Agent',
                 agentIdentity: { name: 'Test Agent', host: 'testhost', folder: 'testdir' },
-                allowAllGroupParticipants: false
+                allowAllGroupParticipants: false,
+                keepAliveIntervalMs: 15000,
+                sendReadyTimeoutMs: 15000,
+                suppressStartupAnnouncement: false
             }
 
             saveConfigFile(config, configPath)

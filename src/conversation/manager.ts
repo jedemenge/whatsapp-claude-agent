@@ -661,6 +661,10 @@ Use \`/config save\` to save to file.`
         // Add to history
         this.history.addUserMessage(message)
 
+        // Track whether the primary send was reached so the catch branch does
+        // not re-invoke a known-broken send path. Previous behaviour
+        // double-threw when the socket was down and crashed the process.
+        let primarySendAttempted = false
         try {
             // Query Claude
             this.logger.info('Sending query to Claude backend...')
@@ -668,6 +672,7 @@ Use \`/config save\` to save to file.`
             this.logger.info(`Claude response received (${response.text.length} chars)`)
 
             if (response.error) {
+                primarySendAttempted = true
                 await sendResponse(`❌ Error: ${response.error}`)
                 return
             }
@@ -680,11 +685,23 @@ Use \`/config save\` to save to file.`
                 this.logger.debug(`Tools used: ${response.toolsUsed.join(', ')}`)
             }
 
+            primarySendAttempted = true
             await sendResponse(response.text)
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error)
             this.logger.error(`Error processing message: ${errorMessage}`)
-            await sendResponse(`❌ An error occurred: ${errorMessage}`)
+            // Only notify the user over WhatsApp if the failure was NOT in the
+            // send path itself — otherwise we'd retry on the exact same dead
+            // socket. When the primary send already ran (or failed), the outer
+            // boundary in index.ts has logged the undelivered text.
+            if (!primarySendAttempted) {
+                try {
+                    await sendResponse(`❌ An error occurred: ${errorMessage}`)
+                } catch (sendErr) {
+                    const sendErrMsg = sendErr instanceof Error ? sendErr.message : String(sendErr)
+                    this.logger.error(`Failed to deliver error notification to user: ${sendErrMsg}`)
+                }
+            }
         }
     }
 
