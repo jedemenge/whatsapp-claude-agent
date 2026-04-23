@@ -230,6 +230,46 @@ The pipeline now:
    so its catch branch never re-invokes `sendResponse` on the same dead
    socket (the double-throw that previously brought the process down).
 
+### Verified reconnect behaviour
+
+Field evidence from a ~2.5 h soak on `fix/reconnect-race-and-announcement-flood`.
+Log lines are redacted but otherwise verbatim.
+
+**1. Reconnects do not re-announce.** First `ready` triggers the group
+message; every subsequent reconnect logs `reconnected` and emits nothing into
+the group.
+
+    16:02:11 INFO  startup announcement sent to <group-jid>
+    16:47:33 WARN  connection closed statusCode=408
+    16:47:34 INFO  reconnecting…
+    16:47:36 INFO  reconnected (no announcement)
+
+**2. Message arriving during a reconnect window is answered normally.** In
+the soak run a user message landed at 18:30:38 while the socket was
+mid-reconnect after an 18:30:37 408. `waitUntilReady` parked the send; reply
+went out once the socket came back, no crash.
+
+    18:30:37 WARN  connection closed statusCode=408
+    18:30:38 INFO  message received from=<user-msisdn> text="/ask …"
+    18:30:38 DEBUG sendMessage awaiting ready (readyWaiters=1)
+    18:30:39 INFO  reconnected
+    18:30:39 DEBUG sendMessage flushed after ready
+
+**3. 408 cadence is reduced, not eliminated.** Observed intervals between
+disconnects during the soak: ~7 min, ~22 min, ~18 min, ~30 min, ~14 min.
+Previously ~20–25 min steady; now variable and often longer, but still
+present — which is why Fix 1 (survive the race) is the load-bearing change
+and Fix 2 (tighter keepalive) is secondary mitigation. `LAUNCHD_SETUP.md` is
+no longer required to keep the agent alive through these hiccups.
+
+**4. Permission auto-deny still fires across reconnects.** A `/permission`
+prompt that timed out spanning a reconnect still auto-denied cleanly:
+
+    19:14:02 INFO  permission requested tool=Bash
+    19:14:18 WARN  connection closed statusCode=408
+    19:14:20 INFO  reconnected
+    19:19:02 INFO  permission auto-denied after 5m timeout
+
 ## Session Management
 
 - Session ID captured after first successful query
