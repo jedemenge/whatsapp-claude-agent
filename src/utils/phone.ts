@@ -54,6 +54,35 @@ export function isWhitelisted(jid: string, whitelist: string[]): boolean {
 }
 
 /**
+ * Match the whitelist against any of the supplied sender candidates.
+ * Used to honour Baileys v7 dual-identity (LID/PN), where a single sender
+ * may surface under multiple JIDs in the same message key.
+ */
+export function isAnyWhitelisted(
+    candidates: Array<string | undefined>,
+    whitelist: string[]
+): boolean {
+    return candidates.some((c) => c !== undefined && isWhitelisted(c, whitelist))
+}
+
+/**
+ * Convert a whitelist entry to a JID we can send to. Returns null for
+ * LID-only entries (we cannot reliably DM a contact from their LID alone:
+ * such sends produce malformed JIDs and trigger announcement loops when
+ * the echo round-trips through the alternate identity).
+ */
+export function whitelistEntryToSendableJid(entry: string): string | null {
+    const trimmed = entry.trim()
+    if (trimmed.endsWith('@s.whatsapp.net') || trimmed.endsWith('@g.us')) {
+        return trimmed
+    }
+    if (trimmed.endsWith('@lid')) {
+        return null
+    }
+    return phoneToJid(trimmed)
+}
+
+/**
  * Check if JID is a group chat
  */
 export function isGroupJid(jid: string): boolean {

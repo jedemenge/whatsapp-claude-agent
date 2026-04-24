@@ -3,7 +3,9 @@ import {
     normalizePhone,
     phoneFromJid,
     isWhitelisted,
+    isAnyWhitelisted,
     normalizeWhitelistEntry,
+    whitelistEntryToSendableJid,
     extractGroupInviteCode
 } from './phone.ts'
 
@@ -79,6 +81,72 @@ describe('phone utils', () => {
             expect(isWhitelisted('1234567890@s.whatsapp.net', whitelist)).toBe(true)
             expect(isWhitelisted('214787086672091@lid', whitelist)).toBe(true)
             expect(isWhitelisted('999999999@lid', whitelist)).toBe(false)
+        })
+    })
+
+    describe('isAnyWhitelisted (LID/PN dual identity)', () => {
+        test('matches via PN alternate when primary is LID (the reported bug)', () => {
+            // Reproduces the original report: phone-only whitelist must accept
+            // a reply whose remoteJid is a LID and remoteJidAlt is the PN.
+            expect(
+                isAnyWhitelisted(
+                    ['170025004613669@lid', '31683999861@s.whatsapp.net'],
+                    ['+31683999861']
+                )
+            ).toBe(true)
+        })
+
+        test('rejects unknown LID when no alt is present', () => {
+            expect(isAnyWhitelisted(['170025004613669@lid', undefined], ['+31683999861'])).toBe(
+                false
+            )
+        })
+
+        test('matches LID-only whitelist via primary candidate', () => {
+            expect(
+                isAnyWhitelisted(['170025004613669@lid', undefined], ['170025004613669@lid'])
+            ).toBe(true)
+        })
+
+        test('group analogue: matches via participantAlt', () => {
+            expect(
+                isAnyWhitelisted(
+                    ['214787086672091@lid', '31683999861@s.whatsapp.net'],
+                    ['+31683999861']
+                )
+            ).toBe(true)
+        })
+
+        test('skips undefined candidates without throwing', () => {
+            expect(isAnyWhitelisted([undefined, undefined], ['+31683999861'])).toBe(false)
+        })
+    })
+
+    describe('whitelistEntryToSendableJid', () => {
+        test('converts a phone number to a PN JID', () => {
+            expect(whitelistEntryToSendableJid('+31683999861')).toBe('31683999861@s.whatsapp.net')
+        })
+
+        test('returns null for LID-only entries (cannot DM reliably)', () => {
+            expect(whitelistEntryToSendableJid('170025004613669@lid')).toBeNull()
+        })
+
+        test('passes an already-formed PN JID through unchanged', () => {
+            expect(whitelistEntryToSendableJid('1234567890@s.whatsapp.net')).toBe(
+                '1234567890@s.whatsapp.net'
+            )
+        })
+
+        test('passes a group JID through unchanged', () => {
+            expect(whitelistEntryToSendableJid('123456789-123345@g.us')).toBe(
+                '123456789-123345@g.us'
+            )
+        })
+
+        test('trims whitespace before routing', () => {
+            expect(whitelistEntryToSendableJid('  +31683999861  ')).toBe(
+                '31683999861@s.whatsapp.net'
+            )
         })
     })
 

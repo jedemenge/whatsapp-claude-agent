@@ -2,7 +2,7 @@
 
 ## Required Options
 
-**`whitelist`** — MANDATORY. App exits if not provided via CLI (`-w`) or config file. Must contain at least one phone number.
+**`whitelist`** — MANDATORY. App exits if not provided via CLI (`-w`) or config file. Must contain at least one entry: a phone number (preferred, e.g. `+31683999861`) or a WhatsApp privacy ID (`xxx` or `xxx@lid`). See "LID/PN dual identity" below.
 
 ## CLI Config Management
 
@@ -40,6 +40,14 @@ whatsapp-claude-agent config -c /custom/path.json set model haiku
 ```
 
 Valid keys for set/get: whitelist, directory, mode, sessionPath, model, maxTurns, processMissed, missedThresholdMins, verbose, agentName, systemPrompt, systemPromptAppend, settingSources
+
+### LID/PN dual identity
+
+Baileys v7 may deliver messages in **LID addressing mode**, where the sender's primary `key.remoteJid` (or `key.participant` for groups) is a `xxx@lid` privacy ID and the phone-number JID sits on `key.remoteJidAlt` / `key.participantAlt`. The whitelist matcher considers **both** the primary and the alternate, so a phone-only whitelist normally Just Works for both DMs and group chats — no LID configuration required.
+
+Add `xxx@lid` entries only as a fallback for senders whose messages do not carry a phone alternate (some group participants). Mixing forms is supported (e.g. `-w "+31683999861,170025004613669@lid"`); duplicates in the destination set for the startup announcement are collapsed automatically.
+
+LID-only whitelist entries (no PN form alongside) are **accepted for inbound matching** but **skipped for the startup announcement** with an info-level log — sending to a bare `@lid` produces malformed JIDs and can echo back through the alternate identity, triggering an announcement loop. Add your phone number alongside the LID if you want to be greeted on startup.
 
 ## Sources (Priority Order)
 

@@ -17,7 +17,11 @@ WhatsApp 'ready' event
   ├─ If --join-whatsapp-group: joinGroup(inviteCode)
   └─ sendStartupAnnouncement()
        ├─ Group mode: send to group JID
-       └─ Private mode: send to each whitelisted number
+       └─ Private mode:
+            ├─ Route each whitelist entry through whitelistEntryToSendableJid()
+            ├─ LID-only entries (e.g. "xxx@lid") are skipped with an info log
+            ├─ Deduplicate destinations (phone+lid for the same person → 1 send)
+            └─ Send the announcement to each unique JID
 ```
 
 Startup announcement (private mode):
@@ -63,16 +67,21 @@ Baileys WebSocket
        │
        ▼
 WhatsAppClient.handleMessage()
-  ├─ parseMessage() → IncomingMessage (includes participant, isGroupMessage)
+  ├─ parseMessage() → IncomingMessage
+  │     (includes participant, isGroupMessage, AND Baileys v7 LID/PN
+  │      alternates: fromAlt, participantAlt, addressingMode)
   ├─ Filter: isFromMe? → skip
   ├─ Group mode filtering:
   │    ├─ If not group message → skip
   │    ├─ If wrong group JID → skip
   │    ├─ If message starts with [🤖 → skip (other agent)
-  │    └─ If !allowAllGroupParticipants && participant not in whitelist → skip
+  │    └─ If !allowAllGroupParticipants && neither participant nor
+  │       participantAlt is in whitelist → skip
   ├─ Private mode filtering:
   │    ├─ If group message → skip
-  │    └─ If not in whitelist → skip
+  │    └─ If neither from nor fromAlt is in whitelist → skip
+  │       (block warn includes "(alt: ...)" when an alternate exists;
+  │        an actionable @lid hint fires when no alternate is reported)
   ├─ Filter: withinThreshold? → skip if too old
   └─ emit('event', { type: 'message', message })
        │

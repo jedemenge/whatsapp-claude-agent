@@ -12,7 +12,7 @@ import qrcode from 'qrcode-terminal'
 import { initAuthState, type AuthState } from './auth.ts'
 import { chunkMessage } from './chunker.ts'
 import { parseMessage, isWithinThreshold } from './messages.ts'
-import { isWhitelisted, extractGroupInviteCode } from '../utils/phone.ts'
+import { isAnyWhitelisted, extractGroupInviteCode } from '../utils/phone.ts'
 import { formatMessageWithAgentName } from '../utils/agent-name.ts'
 import type { Logger } from '../utils/logger.ts'
 import type { Config, AgentEvent, GroupConfig } from '../types.ts'
@@ -191,12 +191,15 @@ export class WhatsAppClient extends EventEmitter {
 
             // Check whitelist unless allowAllGroupParticipants is enabled
             if (!this.config.allowAllGroupParticipants) {
-                if (!isWhitelisted(msg.participant, this.config.whitelist)) {
+                if (
+                    !isAnyWhitelisted([msg.participant, msg.participantAlt], this.config.whitelist)
+                ) {
+                    const altSuffix = msg.participantAlt ? ` (alt: ${msg.participantAlt})` : ''
                     this.logger.warn(
-                        `Blocked group message from non-whitelisted participant: ${msg.participant}`
+                        `Blocked group message from non-whitelisted participant: ${msg.participant}${altSuffix}`
                     )
                     // Provide hint for @lid identifiers (WhatsApp privacy IDs used in groups)
-                    if (msg.participant.endsWith('@lid')) {
+                    if (msg.participant.endsWith('@lid') && !msg.participantAlt) {
                         const lidId = msg.participant.replace('@lid', '')
                         this.logger.info(
                             `Hint: This is a WhatsApp privacy ID (lid). If this is you, add "${lidId}" or "${msg.participant}" to your whitelist. ` +
@@ -218,8 +221,21 @@ export class WhatsAppClient extends EventEmitter {
                 return
             }
 
-            if (!isWhitelisted(msg.from, this.config.whitelist)) {
-                this.logger.warn(`Blocked message from non-whitelisted number: ${msg.from}`)
+            if (!isAnyWhitelisted([msg.from, msg.fromAlt], this.config.whitelist)) {
+                const altSuffix = msg.fromAlt ? ` (alt: ${msg.fromAlt})` : ''
+                this.logger.warn(
+                    `Blocked message from non-whitelisted number: ${msg.from}${altSuffix}`
+                )
+                // Provide hint for @lid identifiers when no PN alternate is available.
+                // When an alt IS present we already matched against it above; reaching
+                // this branch with an alt means the user simply isn't whitelisted.
+                if (msg.from.endsWith('@lid') && !msg.fromAlt) {
+                    const lidId = msg.from.replace('@lid', '')
+                    this.logger.info(
+                        `Hint: This DM arrived as a WhatsApp privacy ID (lid). To allow it, add "${lidId}" or "${msg.from}" to your whitelist. ` +
+                            `Usually Baileys also reports a phone alternate which is matched automatically; this message did not include one.`
+                    )
+                }
                 return
             }
         }
