@@ -5,7 +5,7 @@ import { createLogger } from './utils/logger.ts'
 import { WhatsAppClient } from './whatsapp/client.ts'
 import { SDKBackend } from './claude/sdk-backend.ts'
 import { ConversationManager } from './conversation/manager.ts'
-import { phoneToJid } from './utils/phone.ts'
+import { whitelistEntryToSendableJid } from './utils/phone.ts'
 import type { Config, AgentEvent, IncomingMessage, PermissionRequest } from './types.ts'
 
 async function main() {
@@ -186,13 +186,35 @@ Check if online: */agent*`
 
 Type */help* for available commands.`
 
-            for (const phone of config.whitelist) {
-                const jid = phoneToJid(phone)
+            // Route every whitelist entry through whitelistEntryToSendableJid:
+            // - phone numbers become PN JIDs
+            // - already-formed @s.whatsapp.net / @g.us pass through
+            // - LID-only entries return null and are skipped (sending to a LID
+            //   produces malformed JIDs and can echo back through the alternate
+            //   identity, triggering an announcement loop)
+            // We deduplicate the resulting JID set so a combined phone+lid
+            // whitelist for the same person fans out only once.
+            const destinations = new Map<string, string>() // jid -> originating entry
+            for (const entry of config.whitelist) {
+                const jid = whitelistEntryToSendableJid(entry)
+                if (jid === null) {
+                    logger.info(
+                        `Skipping startup announcement to LID-only whitelist entry "${entry}" — ` +
+                            `add your phone number alongside it to receive announcements; ` +
+                            `replies from this LID will still be accepted.`
+                    )
+                    continue
+                }
+                if (!destinations.has(jid)) {
+                    destinations.set(jid, entry)
+                }
+            }
+            for (const [jid, entry] of destinations) {
                 try {
                     await whatsapp.sendMessage(jid, announcement)
-                    logger.info(`Startup announcement sent to ${phone}`)
+                    logger.info(`Startup announcement sent to ${entry}`)
                 } catch (error) {
-                    logger.error(`Failed to send startup announcement to ${phone}: ${error}`)
+                    logger.error(`Failed to send startup announcement to ${entry}: ${error}`)
                 }
             }
         }
@@ -238,12 +260,20 @@ Type */help* for available commands.`
     }
 
     async function handlePermissionRequest(request: PermissionRequest) {
-        // Send permission request to the user who initiated the conversation
-        // whitelist[0] is guaranteed to exist by ConfigSchema validation (min 1 required)
+        // Send permission request to the user who initiated the conversation.
+        // whitelist[0] is guaranteed to exist by ConfigSchema validation (min 1).
+        // For the fallback path (no current sender) prefer the first whitelist
+        // entry that yields a sendable JID; LID-only entries cannot be DMed.
         const groupConfig = whatsapp.getGroupConfig()
-        const jid = groupConfig
-            ? groupConfig.groupJid
-            : currentSenderJid || phoneToJid(config.whitelist[0]!)
+        const fallbackJid =
+            config.whitelist.map(whitelistEntryToSendableJid).find((j) => j !== null) ?? null
+        const jid = groupConfig ? groupConfig.groupJid : (currentSenderJid ?? fallbackJid)
+        if (!jid) {
+            logger.error(
+                'Cannot send permission request: no current sender and no sendable whitelist entry (all entries are LID-only). Add a phone number to your whitelist.'
+            )
+            return
+        }
 
         logger.info(`Sending permission request to ${jid} for tool: ${request.toolName}`)
 

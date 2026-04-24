@@ -65,6 +65,12 @@ export interface IncomingMessage {
     isFromMe: boolean
     participant?: string // Sender JID in group messages (undefined for private chats)
     isGroupMessage: boolean
+    // Baileys v7 dual-identity (LID/PN). When the chat or sender is delivered
+    // in LID addressing mode, Baileys puts the alternate phone-number JID on
+    // these fields. Whitelist matching considers both the primary and the alt.
+    fromAlt?: string
+    participantAlt?: string
+    addressingMode?: 'pn' | 'lid'
 }
 
 export interface GroupConfig {

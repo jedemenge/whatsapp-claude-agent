@@ -47,6 +47,15 @@ export function parseMessage(msg: WAMessage): IncomingMessage | null {
     // Check if this is a group message
     const isGroupMessage = key.remoteJid.endsWith('@g.us')
     const participant = isGroupMessage ? (key.participant ?? undefined) : undefined
+    // Baileys v7 surfaces the alternate phone-number JID on remoteJidAlt /
+    // participantAlt when delivery is in LID addressing mode. The whitelist
+    // matcher uses these as additional candidates so a phone-only whitelist
+    // still matches a LID-mode reply.
+    const participantAlt = isGroupMessage ? (key.participantAlt ?? undefined) : undefined
+    const fromAlt = isGroupMessage ? undefined : (key.remoteJidAlt ?? undefined)
+    const rawAddressingMode = key.addressingMode
+    const addressingMode: 'pn' | 'lid' | undefined =
+        rawAddressingMode === 'pn' || rawAddressingMode === 'lid' ? rawAddressingMode : undefined
 
     return {
         id: key.id,
@@ -55,7 +64,10 @@ export function parseMessage(msg: WAMessage): IncomingMessage | null {
         timestamp: new Date((msg.messageTimestamp as number) * 1000 || Date.now()),
         isFromMe: key.fromMe ?? false,
         participant, // Sender in group (undefined for private)
-        isGroupMessage
+        isGroupMessage,
+        fromAlt,
+        participantAlt,
+        addressingMode
     }
 }
 
