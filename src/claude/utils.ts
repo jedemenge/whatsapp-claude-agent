@@ -3,12 +3,27 @@
  * When in doubt, shorthands resolve to the most recent version of each model family
  */
 const MODEL_SHORTHANDS: Record<string, string> = {
-    // Opus 4.5 variants (most recent Opus)
+    // Opus 4.7 variants (most recent Opus)
+    'opus-4.7': 'claude-opus-4-7',
+    'opus4.7': 'claude-opus-4-7',
+    'opus-4-7': 'claude-opus-4-7',
+    'opus47': 'claude-opus-4-7',
+    // Sonnet 4.6 variants (most recent Sonnet)
+    'sonnet-4.6': 'claude-sonnet-4-6',
+    'sonnet4.6': 'claude-sonnet-4-6',
+    'sonnet-4-6': 'claude-sonnet-4-6',
+    'sonnet46': 'claude-sonnet-4-6',
+    // Haiku 4.5 variants (most recent Haiku)
+    'haiku-4.5': 'claude-haiku-4-5-20251001',
+    'haiku4.5': 'claude-haiku-4-5-20251001',
+    'haiku-4-5': 'claude-haiku-4-5-20251001',
+    'haiku45': 'claude-haiku-4-5-20251001',
+    // Opus 4.5 variants
     'opus-4.5': 'claude-opus-4-5-20251101',
     'opus4.5': 'claude-opus-4-5-20251101',
     'opus-4-5': 'claude-opus-4-5-20251101',
     'opus45': 'claude-opus-4-5-20251101',
-    // Sonnet 4.5 variants (most recent Sonnet)
+    // Sonnet 4.5 variants
     'sonnet-4.5': 'claude-sonnet-4-5-20250929',
     'sonnet4.5': 'claude-sonnet-4-5-20250929',
     'sonnet-4-5': 'claude-sonnet-4-5-20250929',
@@ -34,15 +49,18 @@ const MODEL_SHORTHANDS: Record<string, string> = {
     'haiku-3': 'claude-3-haiku-20240307',
     'haiku3': 'claude-3-haiku-20240307',
     // Simple names -> most recent version of each family
-    'opus': 'claude-opus-4-5-20251101', // Most recent Opus
-    'sonnet': 'claude-sonnet-4-5-20250929', // Most recent Sonnet
-    'haiku': 'claude-3-5-haiku-20241022' // Most recent Haiku
+    'opus': 'claude-opus-4-7', // Most recent Opus
+    'sonnet': 'claude-sonnet-4-6', // Most recent Sonnet
+    'haiku': 'claude-haiku-4-5-20251001' // Most recent Haiku
 }
 
 /**
  * Available model IDs
  */
 export const AVAILABLE_MODELS = [
+    'claude-opus-4-7',
+    'claude-sonnet-4-6',
+    'claude-haiku-4-5-20251001',
     'claude-opus-4-5-20251101',
     'claude-sonnet-4-5-20250929',
     'claude-sonnet-4-20250514',
@@ -57,6 +75,9 @@ export const AVAILABLE_MODELS = [
  * Preferred shorthand for each full model ID (used for display)
  */
 const MODEL_PREFERRED_SHORTHANDS: Record<string, string> = {
+    'claude-opus-4-7': 'opus-4-7',
+    'claude-sonnet-4-6': 'sonnet-4-6',
+    'claude-haiku-4-5-20251001': 'haiku-4-5',
     'claude-opus-4-5-20251101': 'opus-4-5',
     'claude-sonnet-4-5-20250929': 'sonnet-4-5',
     'claude-sonnet-4-20250514': 'sonnet-4',
@@ -77,7 +98,7 @@ export function getModelShorthand(fullModelId: string): string | undefined {
 
 /**
  * Resolve a model shorthand to the full model ID.
- * Supports shorthands like "opus", "sonnet", "haiku", "opus-4.5", "sonnet-4", etc.
+ * Supports shorthands like "opus", "sonnet", "haiku", "opus-4.7", "sonnet-4.6", etc.
  * Returns the full model ID if recognized, or undefined if not recognized.
  * When in doubt, resolves to the most recent version of the model family.
  */

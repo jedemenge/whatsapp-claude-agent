@@ -3,16 +3,76 @@ import { resolveModelShorthand, getModelShorthand, AVAILABLE_MODELS } from './ut
 
 describe('resolveModelShorthand', () => {
     describe('simple shorthands (resolve to most recent version)', () => {
-        test('opus resolves to most recent opus (4.5)', () => {
-            expect(resolveModelShorthand('opus')).toBe('claude-opus-4-5-20251101')
+        test('opus resolves to most recent opus (4.7)', () => {
+            expect(resolveModelShorthand('opus')).toBe('claude-opus-4-7')
         })
 
-        test('sonnet resolves to most recent sonnet (4.5)', () => {
-            expect(resolveModelShorthand('sonnet')).toBe('claude-sonnet-4-5-20250929')
+        test('sonnet resolves to most recent sonnet (4.6)', () => {
+            expect(resolveModelShorthand('sonnet')).toBe('claude-sonnet-4-6')
         })
 
-        test('haiku resolves to most recent haiku (3.5)', () => {
-            expect(resolveModelShorthand('haiku')).toBe('claude-3-5-haiku-20241022')
+        test('haiku resolves to most recent haiku (4.5)', () => {
+            expect(resolveModelShorthand('haiku')).toBe('claude-haiku-4-5-20251001')
+        })
+    })
+
+    describe('opus 4.7 variants', () => {
+        const expected = 'claude-opus-4-7'
+
+        test('opus-4.7', () => {
+            expect(resolveModelShorthand('opus-4.7')).toBe(expected)
+        })
+
+        test('opus4.7', () => {
+            expect(resolveModelShorthand('opus4.7')).toBe(expected)
+        })
+
+        test('opus-4-7', () => {
+            expect(resolveModelShorthand('opus-4-7')).toBe(expected)
+        })
+
+        test('opus47', () => {
+            expect(resolveModelShorthand('opus47')).toBe(expected)
+        })
+    })
+
+    describe('sonnet 4.6 variants', () => {
+        const expected = 'claude-sonnet-4-6'
+
+        test('sonnet-4.6', () => {
+            expect(resolveModelShorthand('sonnet-4.6')).toBe(expected)
+        })
+
+        test('sonnet4.6', () => {
+            expect(resolveModelShorthand('sonnet4.6')).toBe(expected)
+        })
+
+        test('sonnet-4-6', () => {
+            expect(resolveModelShorthand('sonnet-4-6')).toBe(expected)
+        })
+
+        test('sonnet46', () => {
+            expect(resolveModelShorthand('sonnet46')).toBe(expected)
+        })
+    })
+
+    describe('haiku 4.5 variants', () => {
+        const expected = 'claude-haiku-4-5-20251001'
+
+        test('haiku-4.5', () => {
+            expect(resolveModelShorthand('haiku-4.5')).toBe(expected)
+        })
+
+        test('haiku4.5', () => {
+            expect(resolveModelShorthand('haiku4.5')).toBe(expected)
+        })
+
+        test('haiku-4-5', () => {
+            expect(resolveModelShorthand('haiku-4-5')).toBe(expected)
+        })
+
+        test('haiku45', () => {
+            expect(resolveModelShorthand('haiku45')).toBe(expected)
         })
     })
 
@@ -146,29 +206,29 @@ describe('resolveModelShorthand', () => {
 
     describe('case insensitivity', () => {
         test('OPUS resolves correctly', () => {
-            expect(resolveModelShorthand('OPUS')).toBe('claude-opus-4-5-20251101')
+            expect(resolveModelShorthand('OPUS')).toBe('claude-opus-4-7')
         })
 
         test('Sonnet resolves correctly', () => {
-            expect(resolveModelShorthand('Sonnet')).toBe('claude-sonnet-4-5-20250929')
+            expect(resolveModelShorthand('Sonnet')).toBe('claude-sonnet-4-6')
         })
 
-        test('HAIKU-3.5 resolves correctly', () => {
-            expect(resolveModelShorthand('HAIKU-3.5')).toBe('claude-3-5-haiku-20241022')
+        test('HAIKU-4.5 resolves correctly', () => {
+            expect(resolveModelShorthand('HAIKU-4.5')).toBe('claude-haiku-4-5-20251001')
         })
 
-        test('OpUs-4-5 resolves correctly', () => {
-            expect(resolveModelShorthand('OpUs-4-5')).toBe('claude-opus-4-5-20251101')
+        test('OpUs-4-7 resolves correctly', () => {
+            expect(resolveModelShorthand('OpUs-4-7')).toBe('claude-opus-4-7')
         })
     })
 
     describe('whitespace handling', () => {
         test('leading whitespace is trimmed', () => {
-            expect(resolveModelShorthand('  opus')).toBe('claude-opus-4-5-20251101')
+            expect(resolveModelShorthand('  opus')).toBe('claude-opus-4-7')
         })
 
         test('trailing whitespace is trimmed', () => {
-            expect(resolveModelShorthand('opus  ')).toBe('claude-opus-4-5-20251101')
+            expect(resolveModelShorthand('opus  ')).toBe('claude-opus-4-7')
         })
 
         test('surrounding whitespace is trimmed', () => {
@@ -178,9 +238,7 @@ describe('resolveModelShorthand', () => {
 
     describe('full model IDs', () => {
         test('full model ID is returned unchanged', () => {
-            expect(resolveModelShorthand('claude-opus-4-5-20251101')).toBe(
-                'claude-opus-4-5-20251101'
-            )
+            expect(resolveModelShorthand('claude-opus-4-7')).toBe('claude-opus-4-7')
         })
 
         test('all available models are returned unchanged', () => {
@@ -215,6 +273,9 @@ describe('resolveModelShorthand', () => {
 
 describe('AVAILABLE_MODELS', () => {
     test('contains all expected models', () => {
+        expect(AVAILABLE_MODELS).toContain('claude-opus-4-7')
+        expect(AVAILABLE_MODELS).toContain('claude-sonnet-4-6')
+        expect(AVAILABLE_MODELS).toContain('claude-haiku-4-5-20251001')
         expect(AVAILABLE_MODELS).toContain('claude-opus-4-5-20251101')
         expect(AVAILABLE_MODELS).toContain('claude-sonnet-4-5-20250929')
         expect(AVAILABLE_MODELS).toContain('claude-sonnet-4-20250514')
@@ -226,11 +287,23 @@ describe('AVAILABLE_MODELS', () => {
     })
 
     test('has expected number of models', () => {
-        expect(AVAILABLE_MODELS.length).toBe(8)
+        expect(AVAILABLE_MODELS.length).toBe(11)
     })
 })
 
 describe('getModelShorthand', () => {
+    test('returns shorthand for opus 4.7', () => {
+        expect(getModelShorthand('claude-opus-4-7')).toBe('opus-4-7')
+    })
+
+    test('returns shorthand for sonnet 4.6', () => {
+        expect(getModelShorthand('claude-sonnet-4-6')).toBe('sonnet-4-6')
+    })
+
+    test('returns shorthand for haiku 4.5', () => {
+        expect(getModelShorthand('claude-haiku-4-5-20251001')).toBe('haiku-4-5')
+    })
+
     test('returns shorthand for opus 4.5', () => {
         expect(getModelShorthand('claude-opus-4-5-20251101')).toBe('opus-4-5')
     })

@@ -40,12 +40,15 @@ Model shorthands resolved in `src/claude/utils.ts`:
 
 Simple names (resolve to most recent):
 
-- `opus` → `claude-opus-4-5-20251101`
-- `sonnet` → `claude-sonnet-4-5-20250929`
-- `haiku` → `claude-3-5-haiku-20241022`
+- `opus` → `claude-opus-4-7`
+- `sonnet` → `claude-sonnet-4-6`
+- `haiku` → `claude-haiku-4-5-20251001`
 
 Versioned shorthands:
 
+- `opus-4.7`, `opus4.7`, `opus-4-7`, `opus47` → `claude-opus-4-7`
+- `sonnet-4.6`, `sonnet4.6`, `sonnet-4-6`, `sonnet46` → `claude-sonnet-4-6`
+- `haiku-4.5`, `haiku4.5`, `haiku-4-5`, `haiku45` → `claude-haiku-4-5-20251001`
 - `opus-4.5`, `opus4.5`, `opus-4-5`, `opus45` → `claude-opus-4-5-20251101`
 - `sonnet-4.5`, `sonnet4.5`, `sonnet-4-5`, `sonnet45` → `claude-sonnet-4-5-20250929`
 - `opus-4`, `opus4` → `claude-opus-4-20250514`
