@@ -110,6 +110,17 @@ Config Management (without running agent):
             false
         )
         .option(
+            '--hide-agent-prefix',
+            'Do not prepend the [🤖 Name@host folder/] line to outgoing messages. NOTE: other agents sharing the group can no longer detect us via the prefix and may reply to our messages.',
+            false
+        )
+        .option(
+            '--ack-on-target',
+            'Send a brief WhatsApp emoji reaction on every message that targets this agent, so a stalled (suspended) host is immediately visible in the chat.',
+            false
+        )
+        .option('--ack-on-target-emoji <emoji>', 'Emoji used by --ack-on-target. Default: 👀.')
+        .option(
             '-u, --update',
             'Check for updates and install the latest version. All other options are ignored when this flag is used.'
         )

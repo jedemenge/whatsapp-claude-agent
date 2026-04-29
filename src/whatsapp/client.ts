@@ -3,7 +3,8 @@ import makeWASocket, {
     fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore,
     type WASocket,
-    type BaileysEventMap
+    type BaileysEventMap,
+    type WAMessageKey
 } from '@whiskeysockets/baileys'
 import { EventEmitter } from 'events'
 import pino from 'pino'
@@ -342,8 +343,13 @@ export class WhatsAppClient extends EventEmitter {
             throw new WhatsAppNotReadyError()
         }
 
-        // Prefix message with agent identity
-        const prefixedText = formatMessageWithAgentName(this.config.agentIdentity, text)
+        // Prefix message with agent identity unless suppressed by config.
+        // Note: with hideAgentPrefix enabled, other agents in the same group
+        // can no longer detect us via the [🤖 prefix and may try to reply to
+        // our messages. Our own self-loop guard via sentMessageIds still works.
+        const prefixedText = this.config.hideAgentPrefix
+            ? text
+            : formatMessageWithAgentName(this.config.agentIdentity, text)
         const chunks = chunkMessage(prefixedText)
 
         for (const chunk of chunks) {
@@ -371,6 +377,20 @@ export class WhatsAppClient extends EventEmitter {
     async sendTyping(to: string): Promise<void> {
         if (!this.socket || !this.isReady) return
         await this.socket.sendPresenceUpdate('composing', to)
+    }
+
+    /**
+     * Post an emoji reaction to a message. Fire-and-forget: skips silently if
+     * the socket is not ready (the ack is only useful as a fast presence
+     * signal — parking it for a reconnect would defeat the purpose).
+     */
+    async sendReaction(to: string, key: WAMessageKey, emoji: string): Promise<void> {
+        if (!this.socket || !this.isReady) return
+        try {
+            await this.socket.sendMessage(to, { react: { text: emoji, key } })
+        } catch (err) {
+            this.logger.debug(`sendReaction failed (non-fatal): ${err}`)
+        }
     }
 
     async sendStopTyping(to: string): Promise<void> {

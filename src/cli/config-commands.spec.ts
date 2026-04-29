@@ -130,7 +130,10 @@ describe('config file utilities', () => {
                 allowAllGroupParticipants: false,
                 keepAliveIntervalMs: 15000,
                 sendReadyTimeoutMs: 15000,
-                suppressStartupAnnouncement: false
+                suppressStartupAnnouncement: false,
+                hideAgentPrefix: false,
+                ackOnTarget: false,
+                ackOnTargetEmoji: '👀'
             }
 
             const savedPath = saveConfigFile(config, configPath)
@@ -159,7 +162,10 @@ describe('config file utilities', () => {
                 allowAllGroupParticipants: false,
                 keepAliveIntervalMs: 15000,
                 sendReadyTimeoutMs: 15000,
-                suppressStartupAnnouncement: false
+                suppressStartupAnnouncement: false,
+                hideAgentPrefix: false,
+                ackOnTarget: false,
+                ackOnTargetEmoji: '👀'
             }
 
             const savedPath = saveConfigFile(config)
@@ -185,7 +191,10 @@ describe('config file utilities', () => {
                 allowAllGroupParticipants: false,
                 keepAliveIntervalMs: 15000,
                 sendReadyTimeoutMs: 15000,
-                suppressStartupAnnouncement: false
+                suppressStartupAnnouncement: false,
+                hideAgentPrefix: false,
+                ackOnTarget: false,
+                ackOnTargetEmoji: '👀'
             }
 
             saveConfigFile(config, nestedPath)
@@ -211,7 +220,10 @@ describe('config file utilities', () => {
                 allowAllGroupParticipants: true, // runtime-only
                 keepAliveIntervalMs: 15000,
                 sendReadyTimeoutMs: 15000,
-                suppressStartupAnnouncement: false
+                suppressStartupAnnouncement: false,
+                hideAgentPrefix: false,
+                ackOnTarget: false,
+                ackOnTargetEmoji: '👀'
             }
 
             saveConfigFile(config, configPath)
@@ -239,7 +251,10 @@ describe('config file utilities', () => {
                 allowAllGroupParticipants: false,
                 keepAliveIntervalMs: 15000,
                 sendReadyTimeoutMs: 15000,
-                suppressStartupAnnouncement: false
+                suppressStartupAnnouncement: false,
+                hideAgentPrefix: false,
+                ackOnTarget: false,
+                ackOnTargetEmoji: '👀'
             }
 
             saveConfigFile(config, configPath)
@@ -369,5 +384,78 @@ describe('config commands integration', () => {
         // Should be valid JSON
         const reparsed = JSON.parse(jsonString)
         expect(reparsed).toEqual(config)
+    })
+})
+
+describe('agent presence flags', () => {
+    let testDir: string
+    let configPath: string
+
+    beforeEach(() => {
+        testDir = join(
+            tmpdir(),
+            `whatsapp-claude-agent-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        )
+        mkdirSync(testDir, { recursive: true })
+        configPath = join(testDir, 'config.json')
+    })
+
+    afterEach(() => {
+        if (existsSync(testDir)) {
+            rmSync(testDir, { recursive: true, force: true })
+        }
+    })
+
+    test('hideAgentPrefix round-trips through save/load', () => {
+        const config: Config = {
+            whitelist: ['+1234567890'],
+            directory: testDir,
+            mode: 'default',
+            sessionPath: '/tmp/session',
+            model: 'claude-sonnet-4-20250514',
+            processMissed: false,
+            missedThresholdMins: 60,
+            verbose: false,
+            forkSession: false,
+            agentName: 'Test Agent',
+            agentIdentity: { name: 'Test Agent', host: 'testhost', folder: 'testdir' },
+            allowAllGroupParticipants: false,
+            keepAliveIntervalMs: 15000,
+            sendReadyTimeoutMs: 15000,
+            suppressStartupAnnouncement: false,
+            hideAgentPrefix: true,
+            ackOnTarget: true,
+            ackOnTargetEmoji: '⚙️'
+        }
+
+        saveConfigFile(config, configPath)
+        const loaded = loadConfigFile(configPath)
+
+        expect(loaded.hideAgentPrefix).toBe(true)
+        expect(loaded.ackOnTarget).toBe(true)
+        expect(loaded.ackOnTargetEmoji).toBe('⚙️')
+    })
+
+    test('generateConfigTemplate emits the new flags when supplied', () => {
+        const template = generateConfigTemplate({
+            whitelist: ['+123'],
+            hideAgentPrefix: true,
+            ackOnTarget: true,
+            ackOnTargetEmoji: '✅'
+        })
+        const parsed = JSON.parse(template)
+
+        expect(parsed.hideAgentPrefix).toBe(true)
+        expect(parsed.ackOnTarget).toBe(true)
+        expect(parsed.ackOnTargetEmoji).toBe('✅')
+    })
+
+    test('generateConfigTemplate omits the new flags when not supplied', () => {
+        const template = generateConfigTemplate({ whitelist: ['+123'] })
+        const parsed = JSON.parse(template)
+
+        expect(parsed.hideAgentPrefix).toBeUndefined()
+        expect(parsed.ackOnTarget).toBeUndefined()
+        expect(parsed.ackOnTargetEmoji).toBeUndefined()
     })
 })

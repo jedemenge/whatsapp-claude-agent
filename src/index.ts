@@ -252,6 +252,12 @@ Type */help* for available commands.`
                 } catch (error) {
                     logger.debug(`sendTyping failed (non-fatal): ${error}`)
                 }
+            },
+            async () => {
+                // Presence ack: emoji reaction on the originating message.
+                // Skip silently if Baileys did not surface a key.
+                if (!message.key) return
+                await whatsapp.sendReaction(message.from, message.key, config.ackOnTargetEmoji)
             }
         )
 

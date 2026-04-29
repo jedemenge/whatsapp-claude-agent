@@ -3,6 +3,7 @@ import type {
     PermissionMode as SDKPermissionMode,
     SettingSource as SDKSettingSource
 } from '@anthropic-ai/claude-agent-sdk'
+import type { WAMessageKey } from '@whiskeysockets/baileys'
 
 // Re-export SDK's PermissionMode type for use throughout the app
 export type PermissionMode = SDKPermissionMode
@@ -52,7 +53,10 @@ export const ConfigSchema = z.object({
     allowAllGroupParticipants: z.boolean().default(false), // Runtime-only: bypass whitelist in group mode
     keepAliveIntervalMs: z.number().int().positive().default(15000), // Baileys keepalive IQ ping interval; lower = less chance of 408 timeouts on Bun
     sendReadyTimeoutMs: z.number().int().nonnegative().default(15000), // How long sendMessage() waits for the socket to become ready during a reconnect window
-    suppressStartupAnnouncement: z.boolean().default(false) // Skip the "Now online!" announcement even on first ready
+    suppressStartupAnnouncement: z.boolean().default(false), // Skip the "Now online!" announcement even on first ready
+    hideAgentPrefix: z.boolean().default(false), // Suppress the "[🤖 Name@host folder/]" prefix on outgoing messages
+    ackOnTarget: z.boolean().default(false), // Send a WhatsApp emoji reaction to acknowledge messages targeting this agent (presence signal)
+    ackOnTargetEmoji: z.string().default('👀') // Emoji used when ackOnTarget is enabled
 })
 
 export type Config = z.infer<typeof ConfigSchema>
@@ -71,6 +75,9 @@ export interface IncomingMessage {
     fromAlt?: string
     participantAlt?: string
     addressingMode?: 'pn' | 'lid'
+    // Raw Baileys message key, retained so we can post emoji reactions back to
+    // the originating message (used by the ackOnTarget presence signal).
+    key?: WAMessageKey
 }
 
 export interface GroupConfig {
