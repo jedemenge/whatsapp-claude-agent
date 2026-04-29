@@ -40,6 +40,9 @@ type SaveableConfigKey =
     | 'keepAliveIntervalMs'
     | 'sendReadyTimeoutMs'
     | 'suppressStartupAnnouncement'
+    | 'hideAgentPrefix'
+    | 'ackOnTarget'
+    | 'ackOnTargetEmoji'
 
 const SAVEABLE_KEYS: SaveableConfigKey[] = [
     'whitelist',
@@ -57,7 +60,10 @@ const SAVEABLE_KEYS: SaveableConfigKey[] = [
     'settingSources',
     'keepAliveIntervalMs',
     'sendReadyTimeoutMs',
-    'suppressStartupAnnouncement'
+    'suppressStartupAnnouncement',
+    'hideAgentPrefix',
+    'ackOnTarget',
+    'ackOnTargetEmoji'
 ]
 
 /**
@@ -107,6 +113,9 @@ export interface ConfigInitOptions {
     keepAliveIntervalMs?: number
     sendReadyTimeoutMs?: number
     suppressStartupAnnouncement?: boolean
+    hideAgentPrefix?: boolean
+    ackOnTarget?: boolean
+    ackOnTargetEmoji?: string
 }
 
 /**
@@ -157,6 +166,15 @@ export function generateConfigTemplate(options?: ConfigInitOptions): string {
     if (options?.suppressStartupAnnouncement !== undefined) {
         template['suppressStartupAnnouncement'] = options.suppressStartupAnnouncement
     }
+    if (options?.hideAgentPrefix !== undefined) {
+        template['hideAgentPrefix'] = options.hideAgentPrefix
+    }
+    if (options?.ackOnTarget !== undefined) {
+        template['ackOnTarget'] = options.ackOnTarget
+    }
+    if (options?.ackOnTargetEmoji !== undefined) {
+        template['ackOnTargetEmoji'] = options.ackOnTargetEmoji
+    }
 
     return JSON.stringify(template, null, 4)
 }
@@ -205,6 +223,9 @@ export interface CLIOptions {
     keepAliveInterval?: string
     sendReadyTimeout?: string
     suppressStartupAnnouncement?: boolean
+    hideAgentPrefix?: boolean
+    ackOnTarget?: boolean
+    ackOnTargetEmoji?: string
 }
 
 export function parseConfig(cliOptions: CLIOptions): Config {
@@ -272,7 +293,10 @@ export function parseConfig(cliOptions: CLIOptions): Config {
             ? parseInt(cliOptions.sendReadyTimeout, 10)
             : fileConfig.sendReadyTimeoutMs,
         suppressStartupAnnouncement:
-            cliOptions.suppressStartupAnnouncement ?? fileConfig.suppressStartupAnnouncement
+            cliOptions.suppressStartupAnnouncement ?? fileConfig.suppressStartupAnnouncement,
+        hideAgentPrefix: cliOptions.hideAgentPrefix ?? fileConfig.hideAgentPrefix,
+        ackOnTarget: cliOptions.ackOnTarget ?? fileConfig.ackOnTarget,
+        ackOnTargetEmoji: cliOptions.ackOnTargetEmoji ?? fileConfig.ackOnTargetEmoji
     }
 
     // Filter out undefined values

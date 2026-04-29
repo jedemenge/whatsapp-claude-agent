@@ -67,7 +67,8 @@ export function parseMessage(msg: WAMessage): IncomingMessage | null {
         isGroupMessage,
         fromAlt,
         participantAlt,
-        addressingMode
+        addressingMode,
+        key
     }
 }
 

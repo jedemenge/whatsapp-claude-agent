@@ -87,7 +87,8 @@ export class ConversationManager extends EventEmitter {
     async handleMessage(
         message: IncomingMessage,
         sendResponse: (text: string) => Promise<void>,
-        sendTyping: () => Promise<void>
+        sendTyping: () => Promise<void>,
+        sendReaction?: () => Promise<void>
     ): Promise<void> {
         // In group mode, check if message is targeted at this agent first
         const groupConfig = this.whatsappClient?.getGroupConfig()
@@ -115,6 +116,14 @@ export class ConversationManager extends EventEmitter {
 
             // Update the message object with cleaned text for processing
             message = { ...message, text: messageText }
+        }
+
+        // Presence ack: fire BEFORE any further processing so a stalled host
+        // (suspended Bun, hung Claude SDK call) is visible in the chat as a
+        // missing reaction. Fire-and-forget; failures are logged but never
+        // gate the message pipeline.
+        if (this.config.ackOnTarget && sendReaction) {
+            void sendReaction()
         }
 
         // Check if this is a permission response (after targeting check for group mode)

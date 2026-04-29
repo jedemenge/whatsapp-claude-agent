@@ -74,4 +74,15 @@ describe('parseMessage', () => {
         expect(parsed).not.toBeNull()
         expect(parsed!.addressingMode).toBeUndefined()
     })
+
+    test('exposes the raw Baileys key so reactions can target it', () => {
+        const key = {
+            id: 'RXN',
+            remoteJid: '31683999861@s.whatsapp.net',
+            fromMe: false
+        }
+        const parsed = parseMessage(makeMessage(key))
+        expect(parsed).not.toBeNull()
+        expect(parsed!.key).toBe(key)
+    })
 })

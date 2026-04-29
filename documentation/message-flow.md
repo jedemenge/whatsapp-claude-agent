@@ -214,10 +214,25 @@ index.ts sendResponse callback (try/catch boundary)
        ▼
 WhatsAppClient.sendMessage()
   ├─ await waitUntilReady(sendReadyTimeoutMs)   ← bridges reconnect window
-  ├─ formatMessageWithAgentName() → "[🤖 Name@host folder/]\ntext"
+  ├─ formatMessageWithAgentName() → "[🤖 Name@host folder/]\ntext"  (skipped when hideAgentPrefix=true)
   ├─ chunkMessage() → splits if > 4000 chars
   └─ sock.sendMessage() for each chunk
 ```
+
+### Presence ack (ackOnTarget)
+
+When `ackOnTarget` is enabled, `ConversationManager.handleMessage()` fires
+`whatsapp.sendReaction(jid, msg.key, ackOnTargetEmoji)` immediately after the
+targeting check passes — _before_ any history append, permission resolution,
+command dispatch, or Claude SDK call. The reaction is fire-and-forget; if the
+socket is not ready it is dropped silently rather than parked on
+`waitUntilReady` (a delayed presence signal is worse than none).
+
+The intent is operator-visible: when the host is suspended (macOS App Nap,
+closed lid) the reaction never lands, so the missing emoji on a recent message
+is the cue that the agent is asleep. When the host wakes and the SDK call
+resumes, the eventual reply still arrives — but the absence of the ack during
+the freeze is the diagnostic.
 
 ### Reconnect-safe send
 

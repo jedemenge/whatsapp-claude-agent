@@ -39,7 +39,7 @@ whatsapp-claude-agent config -d /path/to/project show
 whatsapp-claude-agent config -c /custom/path.json set model haiku
 ```
 
-Valid keys for set/get: whitelist, directory, mode, sessionPath, model, maxTurns, processMissed, missedThresholdMins, verbose, agentName, systemPrompt, systemPromptAppend, settingSources, keepAliveIntervalMs, sendReadyTimeoutMs, suppressStartupAnnouncement
+Valid keys for set/get: whitelist, directory, mode, sessionPath, model, maxTurns, processMissed, missedThresholdMins, verbose, agentName, systemPrompt, systemPromptAppend, settingSources, keepAliveIntervalMs, sendReadyTimeoutMs, suppressStartupAnnouncement, hideAgentPrefix, ackOnTarget, ackOnTargetEmoji
 
 ### LID/PN dual identity
 
@@ -94,7 +94,10 @@ ConfigSchema = z.object({
     allowAllGroupParticipants: z.boolean().default(false),
     keepAliveIntervalMs: z.number().int().positive().default(15000),
     sendReadyTimeoutMs: z.number().int().nonnegative().default(15000),
-    suppressStartupAnnouncement: z.boolean().default(false)
+    suppressStartupAnnouncement: z.boolean().default(false),
+    hideAgentPrefix: z.boolean().default(false),
+    ackOnTarget: z.boolean().default(false),
+    ackOnTargetEmoji: z.string().default('👀')
 })
 ```
 
@@ -103,6 +106,12 @@ ConfigSchema = z.object({
 - **`keepAliveIntervalMs`** (default `15000`) — interval for the Baileys application-layer keepalive ping (IQ `ping`). Baileys' own default is 30000; the lower value reduces 408 disconnect frequency observed on Bun's `ws` shim.
 - **`sendReadyTimeoutMs`** (default `15000`) — how long `WhatsAppClient.sendMessage()` waits for the socket to come back during a reconnect window before it gives up. Set to `0` to revert to the legacy "throw immediately" behaviour. When a send times out the outer boundary in `index.ts` logs the undelivered text and continues — the process does NOT crash.
 - **`suppressStartupAnnouncement`** (default `false`) — skips the "Now online!" message on startup. Reconnects never emit the announcement regardless of this flag (fix for the spam seen under process supervisors).
+
+### Presence and identity options
+
+- **`hideAgentPrefix`** (default `false`) — suppresses the `[🤖 Name@host folder/]\n` line prepended to every outgoing message. Useful when the agent shares a chat with humans and the prefix is just noise. Caveat: other agents in the same group rely on the `[🤖` prefix to detect bot traffic and ignore each other (`src/whatsapp/client.ts` self-loop guard). With this flag set, two agents in the same group could reply to each other's messages. Our own self-echo guard via `sentMessageIds` is unaffected.
+- **`ackOnTarget`** (default `false`) — sends a WhatsApp emoji reaction to every message that targets this agent (group: any of `@Name`, `@ai`, `@agent`, `/ask`; private: every whitelisted message). The reaction fires before any blocking work so a stalled host (suspended Bun, hung SDK call) is visible in the chat as a _missing_ reaction.
+- **`ackOnTargetEmoji`** (default `👀`) — emoji used by `ackOnTarget`. Any single emoji or short string Baileys accepts as a reaction text.
 
 ## CLI to Config Mapping
 
@@ -128,6 +137,9 @@ ConfigSchema = z.object({
 | `--keep-alive-interval`           | `keepAliveIntervalMs`         |
 | `--send-ready-timeout`            | `sendReadyTimeoutMs`          |
 | `--suppress-startup-announcement` | `suppressStartupAnnouncement` |
+| `--hide-agent-prefix`             | `hideAgentPrefix`             |
+| `--ack-on-target`                 | `ackOnTarget`                 |
+| `--ack-on-target-emoji`           | `ackOnTargetEmoji`            |
 
 ## Save/Load Functions
 
@@ -156,6 +168,7 @@ Only persistent properties saved to file (defined in `SAVEABLE_KEYS` in `src/cli
 - processMissed, missedThresholdMins, verbose, agentName
 - systemPrompt, systemPromptAppend, settingSources
 - keepAliveIntervalMs, sendReadyTimeoutMs, suppressStartupAnnouncement
+- hideAgentPrefix, ackOnTarget, ackOnTargetEmoji
 
 Runtime-only (not saved):
 

@@ -89,6 +89,30 @@ src/
 5. **Claude Query**: Added to history → Backend.query() → SDK spawns Claude Code → Response returned → Sent to WhatsApp
 6. **Permission**: Claude requests tool use → PermissionManager queues → User responds via WhatsApp → Resolved
 
+## Host suspension (macOS)
+
+The agent is a long-lived Bun process. When the host laptop sleeps, App Naps the
+process, or closes its lid, **the entire event loop pauses**: in-flight Claude
+SDK generators freeze mid-stream, Baileys' WebSocket eventually drops with a 408
+timeout, and any reply that was queued for send sits there until the OS resumes
+the process. The visible symptom is "the agent answered hours later, only after
+I unlocked the screen". There is no TTY/stdin block in the codebase — this is
+purely OS-level suspension.
+
+Mitigations (operator-side, not code):
+
+1. `caffeinate -isu bun run start …` — keeps the system awake while the agent
+   runs. Simplest fix; survives a closed lid only with `-d` (display awake).
+2. Run under launchd with `KeepAlive` and `ProcessType: Background`. Background
+   services are exempt from App Nap.
+3. `pmset -a sleep 0` — disables system sleep entirely; heavyweight.
+4. `defaults write … NSAppSleepDisabled -bool YES` for Terminal/iTerm/the bun
+   binary's bundle ID — disables App Nap selectively.
+
+The `ackOnTarget` config flag exists to make this state observable from the
+chat itself — see `documentation/message-flow.md`. A targeting message that
+gets no emoji reaction within a second or two means the host is asleep.
+
 ## Key Dependencies
 
 - `@anthropic-ai/claude-agent-sdk`: Claude Code integration
