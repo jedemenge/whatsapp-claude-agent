@@ -83,6 +83,37 @@ export function whitelistEntryToSendableJid(entry: string): string | null {
 }
 
 /**
+ * Strip Baileys' optional `:<device>` suffix from the user portion of a JID.
+ * Example: "31123456789:1@s.whatsapp.net" → "31123456789@s.whatsapp.net".
+ */
+export function stripDeviceSuffix(jid: string): string {
+    const atIdx = jid.indexOf('@')
+    if (atIdx === -1) {
+        const colonIdx = jid.indexOf(':')
+        return colonIdx === -1 ? jid : jid.slice(0, colonIdx)
+    }
+    const user = jid.slice(0, atIdx)
+    const suffix = jid.slice(atIdx)
+    const colonIdx = user.indexOf(':')
+    return (colonIdx === -1 ? user : user.slice(0, colonIdx)) + suffix
+}
+
+/**
+ * Check whether a mentioned JID refers to the bot itself. Strict equality
+ * (not the loose suffix match used for whitelisting) — the bot's own phone/LID
+ * is known precisely, so a partial match would risk false positives.
+ */
+export function isSelfMention(mentionJid: string, bot: { phone?: string; lid?: string }): boolean {
+    if (!bot.phone && !bot.lid) return false
+    const stripped = stripDeviceSuffix(mentionJid)
+    const id = normalizePhone(phoneFromJid(stripped))
+    if (!id) return false
+    if (bot.phone && id === bot.phone) return true
+    if (bot.lid && id === bot.lid) return true
+    return false
+}
+
+/**
  * Check if JID is a group chat
  */
 export function isGroupJid(jid: string): boolean {

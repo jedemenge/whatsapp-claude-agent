@@ -43,6 +43,7 @@ type SaveableConfigKey =
     | 'hideAgentPrefix'
     | 'ackOnTarget'
     | 'ackOnTargetEmoji'
+    | 'botNumber'
 
 const SAVEABLE_KEYS: SaveableConfigKey[] = [
     'whitelist',
@@ -63,7 +64,8 @@ const SAVEABLE_KEYS: SaveableConfigKey[] = [
     'suppressStartupAnnouncement',
     'hideAgentPrefix',
     'ackOnTarget',
-    'ackOnTargetEmoji'
+    'ackOnTargetEmoji',
+    'botNumber'
 ]
 
 /**
@@ -116,6 +118,7 @@ export interface ConfigInitOptions {
     hideAgentPrefix?: boolean
     ackOnTarget?: boolean
     ackOnTargetEmoji?: string
+    botNumber?: string
 }
 
 /**
@@ -175,6 +178,9 @@ export function generateConfigTemplate(options?: ConfigInitOptions): string {
     if (options?.ackOnTargetEmoji !== undefined) {
         template['ackOnTargetEmoji'] = options.ackOnTargetEmoji
     }
+    if (options?.botNumber !== undefined) {
+        template['botNumber'] = options.botNumber
+    }
 
     return JSON.stringify(template, null, 4)
 }
@@ -226,6 +232,7 @@ export interface CLIOptions {
     hideAgentPrefix?: boolean
     ackOnTarget?: boolean
     ackOnTargetEmoji?: string
+    botNumber?: string
 }
 
 export function parseConfig(cliOptions: CLIOptions): Config {
@@ -296,7 +303,8 @@ export function parseConfig(cliOptions: CLIOptions): Config {
             cliOptions.suppressStartupAnnouncement ?? fileConfig.suppressStartupAnnouncement,
         hideAgentPrefix: cliOptions.hideAgentPrefix ?? fileConfig.hideAgentPrefix,
         ackOnTarget: cliOptions.ackOnTarget ?? fileConfig.ackOnTarget,
-        ackOnTargetEmoji: cliOptions.ackOnTargetEmoji ?? fileConfig.ackOnTargetEmoji
+        ackOnTargetEmoji: cliOptions.ackOnTargetEmoji ?? fileConfig.ackOnTargetEmoji,
+        botNumber: cliOptions.botNumber ?? fileConfig.botNumber
     }
 
     // Filter out undefined values

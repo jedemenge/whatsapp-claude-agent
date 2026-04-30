@@ -121,6 +121,10 @@ Config Management (without running agent):
         )
         .option('--ack-on-target-emoji <emoji>', 'Emoji used by --ack-on-target. Default: 👀.')
         .option(
+            '--bot-number <number>',
+            'Override the bot\'s own phone number used for self-mention detection in groups (e.g., "+31123456789"). Auto-derived from the paired WhatsApp account when omitted.'
+        )
+        .option(
             '-u, --update',
             'Check for updates and install the latest version. All other options are ignored when this flag is used.'
         )

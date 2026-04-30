@@ -1,7 +1,8 @@
 import { basename } from 'path'
 import { hostname } from 'os'
 import { randomSuperhero } from 'superheroes'
-import type { AgentIdentity } from '../types.ts'
+import type { AgentIdentity, BotIdentity } from '../types.ts'
+import { isSelfMention } from './phone.ts'
 
 /**
  * Get a random superhero name from the superheroes package
@@ -100,14 +101,36 @@ function normalizeForMatching(str: string): string {
  * - @AgentName message (mention by name)
  * - @ai message (generic AI mention)
  * - @agent message (generic agent mention)
+ * - @<bot-phone-or-lid> message (mention by bot's own number — detected via
+ *   WhatsApp's contextInfo.mentionedJid; requires botIdentity + mentions)
  * - /ask AgentName message (slash command)
  * - /ask message (generic ask)
  *
  * @returns Object with isTargeted, cleanMessage (without prefix), and method
  */
-export function parseAgentTargeting(text: string, agentName: string): AgentTargetingResult {
+export function parseAgentTargeting(
+    text: string,
+    agentName: string,
+    botIdentity?: BotIdentity,
+    mentions?: string[]
+): AgentTargetingResult {
     const trimmed = text.trim()
     const normalizedAgentName = normalizeForMatching(agentName)
+
+    // Self-mention via WhatsApp's mentionedJid: if the sender used the @-picker
+    // to tag the bot's own number, contextInfo carries the resolved JID. Check
+    // before name-matching so a bare `@<bot-number> hi` is recognised even if
+    // the agent name happens to overlap.
+    if (botIdentity && mentions && mentions.length > 0) {
+        const matchesSelf = mentions.some((j) => isSelfMention(j, botIdentity))
+        if (matchesSelf) {
+            // Strip the leading @<token> from the visible text. WhatsApp puts
+            // the @-tag at the front of the message in practice; if it's not
+            // there we still fall back to the original text.
+            const stripped = trimmed.replace(/^@\S+\s*/, '')
+            return { isTargeted: true, cleanMessage: stripped.trim(), method: 'mention' }
+        }
+    }
 
     // Check for @mention at start of message
     const mentionMatch = trimmed.match(/^@(\S+)\s*(.*)$/s)

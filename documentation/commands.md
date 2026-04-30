@@ -129,18 +129,20 @@ When running with `--join-whatsapp-group`, the agent enters group mode:
 
 In group mode, messages must be explicitly targeted at the agent:
 
-| Format                     | Example                    | Description                       |
-| -------------------------- | -------------------------- | --------------------------------- |
-| `@AgentName <message>`     | `@Spider Man what is 2+2?` | Mention by agent name             |
-| `@ai <message>`            | `@ai help me`              | Generic AI mention                |
-| `@agent <message>`         | `@agent do something`      | Generic agent mention             |
-| `/ask <message>`           | `/ask what time is it?`    | Slash command (targets any agent) |
-| `/ask AgentName <message>` | `/ask Spider Man hello`    | Slash command with specific agent |
+| Format                     | Example                    | Description                                             |
+| -------------------------- | -------------------------- | ------------------------------------------------------- |
+| `@AgentName <message>`     | `@Spider Man what is 2+2?` | Mention by agent name                                   |
+| `@ai <message>`            | `@ai help me`              | Generic AI mention                                      |
+| `@agent <message>`         | `@agent do something`      | Generic agent mention                                   |
+| `@<bot-number> <message>`  | `@31123456789 ping`        | Mention via WhatsApp's @-picker (resolves to PN or LID) |
+| `/ask <message>`           | `/ask what time is it?`    | Slash command (targets any agent)                       |
+| `/ask AgentName <message>` | `/ask Spider Man hello`    | Slash command with specific agent                       |
 
 Notes:
 
 - Agent name matching is case-insensitive
 - Multi-word names work: `@Spider Man hello` or `@spiderman hello`
+- `@<bot-number>` uses `contextInfo.mentionedJid` and matches the bot's auto-resolved PN or LID identity (override with `--bot-number` if needed)
 - Non-targeted messages are ignored
 - All standard commands work the same once targeted
 

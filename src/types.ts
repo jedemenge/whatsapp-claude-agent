@@ -56,7 +56,8 @@ export const ConfigSchema = z.object({
     suppressStartupAnnouncement: z.boolean().default(false), // Skip the "Now online!" announcement even on first ready
     hideAgentPrefix: z.boolean().default(false), // Suppress the "[🤖 Name@host folder/]" prefix on outgoing messages
     ackOnTarget: z.boolean().default(false), // Send a WhatsApp emoji reaction to acknowledge messages targeting this agent (presence signal)
-    ackOnTargetEmoji: z.string().default('👀') // Emoji used when ackOnTarget is enabled
+    ackOnTargetEmoji: z.string().default('👀'), // Emoji used when ackOnTarget is enabled
+    botNumber: z.string().optional() // Optional override for the bot's own phone number (e.g. "+31123456789"). Auto-derived from sock.user when omitted; used to detect @<bot-number> mentions in groups.
 })
 
 export type Config = z.infer<typeof ConfigSchema>
@@ -78,6 +79,22 @@ export interface IncomingMessage {
     // Raw Baileys message key, retained so we can post emoji reactions back to
     // the originating message (used by the ackOnTarget presence signal).
     key?: WAMessageKey
+    // JIDs the sender @-mentioned, as reported by WhatsApp via
+    // contextInfo.mentionedJid. Used to detect mentions of the bot's own
+    // phone/LID without parsing them out of the message text.
+    mentions?: string[]
+}
+
+/**
+ * The bot's own WhatsApp identity, resolved at runtime from sock.user (and
+ * optionally pinned via config.botNumber). Used to detect self-mentions in
+ * groups regardless of whether WhatsApp delivered the mention as PN or LID.
+ */
+export interface BotIdentity {
+    pnJid?: string // e.g. "31123456789@s.whatsapp.net"
+    lidJid?: string // e.g. "170025004613669@lid"
+    phone?: string // normalized digits of pnJid
+    lid?: string // normalized digits of lidJid
 }
 
 export interface GroupConfig {

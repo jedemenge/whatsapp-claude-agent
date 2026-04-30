@@ -13,10 +13,16 @@ import qrcode from 'qrcode-terminal'
 import { initAuthState, type AuthState } from './auth.ts'
 import { chunkMessage } from './chunker.ts'
 import { parseMessage, isWithinThreshold } from './messages.ts'
-import { isAnyWhitelisted, extractGroupInviteCode } from '../utils/phone.ts'
+import {
+    isAnyWhitelisted,
+    extractGroupInviteCode,
+    normalizePhone,
+    phoneFromJid,
+    stripDeviceSuffix
+} from '../utils/phone.ts'
 import { formatMessageWithAgentName } from '../utils/agent-name.ts'
 import type { Logger } from '../utils/logger.ts'
-import type { Config, AgentEvent, GroupConfig } from '../types.ts'
+import type { Config, AgentEvent, GroupConfig, BotIdentity } from '../types.ts'
 
 // Create a silent logger for Baileys to suppress its verbose output
 const silentLogger = pino({ level: 'silent' })
@@ -46,6 +52,10 @@ export class WhatsAppClient extends EventEmitter {
     private startTime: Date
     private sentMessageIds: Set<string> = new Set() // Track messages we send to avoid loops
     private groupConfig: GroupConfig | null = null // Group mode configuration
+    // Bot's own WhatsApp identity, populated from sock.user after the first
+    // 'open' event and refreshed on reconnect. Consumed by ConversationManager
+    // to detect @<bot-number> mentions in groups.
+    private botIdentity: BotIdentity | null = null
     // Callbacks waiting for the next 'open' event. Used by waitUntilReady() so
     // sendMessage() can bridge the short reconnect window instead of throwing.
     private readyWaiters: Array<() => void> = []
@@ -133,6 +143,11 @@ export class WhatsAppClient extends EventEmitter {
                 this.logger.info('WhatsApp connection established!')
                 this.isReady = true
                 this.emit('event', { type: 'authenticated' } as AgentEvent)
+
+                // Resolve the bot's own WhatsApp identity from sock.user. Used
+                // for self-mention detection in groups (mirrors the dual
+                // PN/LID handling already in place for whitelist matching).
+                this.resolveBotIdentity()
 
                 // Release any sendMessage() calls parked by waitUntilReady() during
                 // the reconnect window. Drain the list before calling so a waiter
@@ -481,5 +496,53 @@ export class WhatsAppClient extends EventEmitter {
      */
     getGroupConfig(): GroupConfig | null {
         return this.groupConfig
+    }
+
+    /**
+     * Get the bot's resolved WhatsApp identity (PN + LID forms). Returns null
+     * if the socket has not yet completed its first 'open' event.
+     */
+    getBotIdentity(): BotIdentity | null {
+        return this.botIdentity
+    }
+
+    /**
+     * Populate this.botIdentity from sock.user, optionally pinned by
+     * config.botNumber. Safe to call multiple times — recomputes on each
+     * 'open' event so a re-pair updates the cached values.
+     */
+    private resolveBotIdentity(): void {
+        const user = this.socket?.user
+        const identity: BotIdentity = {}
+
+        const pnSource = user?.id ?? user?.phoneNumber
+        if (pnSource) {
+            const pnJid = stripDeviceSuffix(pnSource)
+            identity.pnJid = pnJid
+            identity.phone = normalizePhone(phoneFromJid(pnJid)) || undefined
+        }
+
+        if (user?.lid) {
+            const lidJid = stripDeviceSuffix(user.lid)
+            identity.lidJid = lidJid
+            identity.lid = normalizePhone(phoneFromJid(lidJid)) || undefined
+        }
+
+        // If the user pinned a number via config, prefer it as the
+        // authoritative phone. Warn when it disagrees with what Baileys
+        // reports — this usually means the wrong account is paired.
+        const configured = this.config.botNumber ? normalizePhone(this.config.botNumber) : undefined
+        if (configured) {
+            if (identity.phone && identity.phone !== configured) {
+                this.logger.warn(
+                    `Configured botNumber "${configured}" disagrees with sock.user phone "${identity.phone}". Using the configured value.`
+                )
+            }
+            identity.phone = configured
+            identity.pnJid = `${configured}@s.whatsapp.net`
+        }
+
+        this.botIdentity = identity
+        this.logger.info(`Bot identity: phone=${identity.phone ?? '?'} lid=${identity.lid ?? '?'}`)
     }
 }
