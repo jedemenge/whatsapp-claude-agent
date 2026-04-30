@@ -95,12 +95,18 @@ export class ConversationManager extends EventEmitter {
         let messageText = message.text
 
         if (groupConfig && message.isGroupMessage) {
-            const targeting = parseAgentTargeting(message.text, this.config.agentIdentity.name)
+            const botIdentity = this.whatsappClient?.getBotIdentity() ?? undefined
+            const targeting = parseAgentTargeting(
+                message.text,
+                this.config.agentIdentity.name,
+                botIdentity,
+                message.mentions
+            )
 
             if (!targeting.isTargeted) {
                 // Not targeted at this agent - ignore silently
                 this.logger.debug(
-                    `Group message not targeted at this agent. Use @${this.config.agentIdentity.name}, @ai, @agent, or /ask`
+                    `Group message not targeted at this agent. Use @${this.config.agentIdentity.name}, @ai, @agent, @<bot-number>, or /ask`
                 )
                 return
             }
@@ -734,11 +740,15 @@ Use \`/config save\` to save to file.`
         let help = ''
 
         if (groupConfig) {
+            const botIdentity = this.whatsappClient?.getBotIdentity()
+            const numberLine = botIdentity?.phone
+                ? `@${botIdentity.phone} <message> - Target by bot's phone number\n`
+                : ''
             help += `*Targeting (required in group):*
 @${name} <message> - Target by name
 @ai <message> - Generic AI target
 @agent <message> - Generic agent target
-/ask <message> - Ask command
+${numberLine}/ask <message> - Ask command
 
 `
         }
@@ -800,6 +810,7 @@ Use \`/config save\` to save to file.`
 
     private getAgentInfoMessage(): string {
         const groupConfig = this.whatsappClient?.getGroupConfig()
+        const botIdentity = this.whatsappClient?.getBotIdentity()
         const chatMode = groupConfig ? 'Group' : 'Private'
         const { name, host } = this.config.agentIdentity
 
@@ -812,13 +823,19 @@ Use \`/config save\` to save to file.`
 🧠 Model: ${this.config.model}
 💬 Chat: ${chatMode}`
 
+        if (botIdentity?.phone || botIdentity?.lid) {
+            message += `\n📱 Number: ${botIdentity.phone ?? '?'}${botIdentity.lid ? ` (lid: ${botIdentity.lid})` : ''}`
+        }
+
         if (groupConfig) {
+            const botIdentity = this.whatsappClient?.getBotIdentity()
+            const numberLine = botIdentity?.phone ? `\n• @${botIdentity.phone} <message>` : ''
             message += `
 
 *Target me with:*
 • @${name} <message>
 • @ai <message>
-• @agent <message>
+• @agent <message>${numberLine}
 • /ask <message>`
         } else {
             message += `
@@ -834,6 +851,7 @@ Type */help* for available commands.`
         const sources = this.backend.getSettingSources()
         const sessionId = this.backend.getSessionId()
         const groupConfig = this.whatsappClient?.getGroupConfig()
+        const botIdentity = this.whatsappClient?.getBotIdentity()
         const { name, host } = this.config.agentIdentity
 
         let promptStatus = 'default'
@@ -849,10 +867,15 @@ Type */help* for available commands.`
             ? `Group: \`${groupConfig.groupJid}\``
             : 'Private messages'
 
+        const numberLine =
+            botIdentity?.phone || botIdentity?.lid
+                ? `\n📱 Number: ${botIdentity.phone ?? '?'}${botIdentity.lid ? ` (lid: ${botIdentity.lid})` : ''}`
+                : ''
+
         return `*Agent Status:*
 
 🤖 Name: *${name}*
-🖥️ Host: ${host}
+🖥️ Host: ${host}${numberLine}
 📁 Directory: ${this.config.directory}
 🔐 Mode: ${this.config.mode}
 🧠 Model: ${this.config.model}

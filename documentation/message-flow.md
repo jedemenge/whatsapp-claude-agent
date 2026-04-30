@@ -61,6 +61,7 @@ Now online!
 • @{name} <message>
 • @ai <message>
 • @agent <message>
+• @{bot-number} <message>   (when sock.user resolves; uses WhatsApp's @-picker)
 • /ask <message>
 
 Check if online: */agent*
@@ -74,8 +75,9 @@ Baileys WebSocket
        ▼
 WhatsAppClient.handleMessage()
   ├─ parseMessage() → IncomingMessage
-  │     (includes participant, isGroupMessage, AND Baileys v7 LID/PN
-  │      alternates: fromAlt, participantAlt, addressingMode)
+  │     (includes participant, isGroupMessage, Baileys v7 LID/PN
+  │      alternates: fromAlt, participantAlt, addressingMode, AND
+  │      mentions[] from extendedTextMessage.contextInfo.mentionedJid)
   ├─ Filter: isFromMe? → skip
   ├─ Group mode filtering:
   │    ├─ If not group message → skip
@@ -98,8 +100,10 @@ index.ts event handler
        ▼
 ConversationManager.handleMessage()
   ├─ Group mode targeting check:
-  │    ├─ parseAgentTargeting(text, agentName)
-  │    ├─ If not targeted (@name, @ai, @agent, /ask) → skip
+  │    ├─ parseAgentTargeting(text, agentName, botIdentity, mentions)
+  │    ├─ If not targeted (@name, @ai, @agent, @<bot-number>, /ask) → skip
+  │    │   (@<bot-number> resolves via mentionedJid against the bot's
+  │    │    own PN/LID, mirroring the whitelist dual-identity pattern)
   │    └─ Strip targeting prefix from message
   ├─ Check pending permissions → tryResolveFromMessage()
   ├─ Check isCommand() → handleCommand()

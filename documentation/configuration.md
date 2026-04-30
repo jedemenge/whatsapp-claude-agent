@@ -39,7 +39,7 @@ whatsapp-claude-agent config -d /path/to/project show
 whatsapp-claude-agent config -c /custom/path.json set model haiku
 ```
 
-Valid keys for set/get: whitelist, directory, mode, sessionPath, model, maxTurns, processMissed, missedThresholdMins, verbose, agentName, systemPrompt, systemPromptAppend, settingSources, keepAliveIntervalMs, sendReadyTimeoutMs, suppressStartupAnnouncement, hideAgentPrefix, ackOnTarget, ackOnTargetEmoji
+Valid keys for set/get: whitelist, directory, mode, sessionPath, model, maxTurns, processMissed, missedThresholdMins, verbose, agentName, systemPrompt, systemPromptAppend, settingSources, keepAliveIntervalMs, sendReadyTimeoutMs, suppressStartupAnnouncement, hideAgentPrefix, ackOnTarget, ackOnTargetEmoji, botNumber
 
 ### LID/PN dual identity
 
@@ -97,7 +97,8 @@ ConfigSchema = z.object({
     suppressStartupAnnouncement: z.boolean().default(false),
     hideAgentPrefix: z.boolean().default(false),
     ackOnTarget: z.boolean().default(false),
-    ackOnTargetEmoji: z.string().default('👀')
+    ackOnTargetEmoji: z.string().default('👀'),
+    botNumber: z.string().optional() // Pin the bot's own phone for self-mention detection
 })
 ```
 
@@ -112,6 +113,7 @@ ConfigSchema = z.object({
 - **`hideAgentPrefix`** (default `false`) — suppresses the `[🤖 Name@host folder/]\n` line prepended to every outgoing message. Useful when the agent shares a chat with humans and the prefix is just noise. Caveat: other agents in the same group rely on the `[🤖` prefix to detect bot traffic and ignore each other (`src/whatsapp/client.ts` self-loop guard). With this flag set, two agents in the same group could reply to each other's messages. Our own self-echo guard via `sentMessageIds` is unaffected.
 - **`ackOnTarget`** (default `false`) — sends a WhatsApp emoji reaction to every message that targets this agent (group: any of `@Name`, `@ai`, `@agent`, `/ask`; private: every whitelisted message). The reaction fires before any blocking work so a stalled host (suspended Bun, hung SDK call) is visible in the chat as a _missing_ reaction.
 - **`ackOnTargetEmoji`** (default `👀`) — emoji used by `ackOnTarget`. Any single emoji or short string Baileys accepts as a reaction text.
+- **`botNumber`** (optional) — pin the bot's own phone number (e.g. `+31123456789`) used for self-mention detection in groups. When omitted the agent auto-derives both PN and LID forms from `sock.user` after the first `connection: 'open'` event. Only set this if Baileys reports the wrong account (multi-device edge cases) — the auto-derived value is normally correct. The matching follows the same dual PN/LID approach as the whitelist (commit `76b066c`): mentions arriving in either addressing mode are recognised.
 
 ## CLI to Config Mapping
 
@@ -140,6 +142,7 @@ ConfigSchema = z.object({
 | `--hide-agent-prefix`             | `hideAgentPrefix`             |
 | `--ack-on-target`                 | `ackOnTarget`                 |
 | `--ack-on-target-emoji`           | `ackOnTargetEmoji`            |
+| `--bot-number`                    | `botNumber`                   |
 
 ## Save/Load Functions
 
@@ -168,7 +171,7 @@ Only persistent properties saved to file (defined in `SAVEABLE_KEYS` in `src/cli
 - processMissed, missedThresholdMins, verbose, agentName
 - systemPrompt, systemPromptAppend, settingSources
 - keepAliveIntervalMs, sendReadyTimeoutMs, suppressStartupAnnouncement
-- hideAgentPrefix, ackOnTarget, ackOnTargetEmoji
+- hideAgentPrefix, ackOnTarget, ackOnTargetEmoji, botNumber
 
 Runtime-only (not saved):
 

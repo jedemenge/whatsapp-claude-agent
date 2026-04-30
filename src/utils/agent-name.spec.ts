@@ -310,4 +310,60 @@ describe('parseAgentTargeting', () => {
             expect(result.cleanMessage).toBe('line1\nline2\nline3')
         })
     })
+
+    describe('self-mention via mentionedJid', () => {
+        const bot = { phone: '31123456789', lid: '170025004613669' }
+
+        test('matches @<bot-phone> when mentions array contains PN JID', () => {
+            const r = parseAgentTargeting('@31123456789 werkt dit ook?', 'SpiderMan', bot, [
+                '31123456789@s.whatsapp.net'
+            ])
+            expect(r.isTargeted).toBe(true)
+            expect(r.cleanMessage).toBe('werkt dit ook?')
+            expect(r.method).toBe('mention')
+        })
+
+        test('matches @<bot-lid> when mentions array contains LID JID', () => {
+            const r = parseAgentTargeting('@170025004613669 hoi', 'SpiderMan', bot, [
+                '170025004613669@lid'
+            ])
+            expect(r.isTargeted).toBe(true)
+            expect(r.cleanMessage).toBe('hoi')
+            expect(r.method).toBe('mention')
+        })
+
+        test('matches when mention has device suffix', () => {
+            const r = parseAgentTargeting('@31123456789 hi', 'SpiderMan', bot, [
+                '31123456789:1@s.whatsapp.net'
+            ])
+            expect(r.isTargeted).toBe(true)
+            expect(r.method).toBe('mention')
+        })
+
+        test('not targeted when mentioned JID is someone else', () => {
+            const r = parseAgentTargeting('@99999999999 hi', 'SpiderMan', bot, [
+                '99999999999@s.whatsapp.net'
+            ])
+            expect(r.isTargeted).toBe(false)
+        })
+
+        test('not targeted when mentions array is empty', () => {
+            const r = parseAgentTargeting('@31123456789 hi', 'SpiderMan', bot, [])
+            expect(r.isTargeted).toBe(false)
+        })
+
+        test('not targeted without botIdentity even if mentions are present', () => {
+            const r = parseAgentTargeting('@31123456789 hi', 'SpiderMan', undefined, [
+                '31123456789@s.whatsapp.net'
+            ])
+            expect(r.isTargeted).toBe(false)
+        })
+
+        test('falls through to name match when self-mention does not apply', () => {
+            const r = parseAgentTargeting('@SpiderMan hi', 'SpiderMan', bot, [])
+            expect(r.isTargeted).toBe(true)
+            expect(r.method).toBe('mention')
+            expect(r.cleanMessage).toBe('hi')
+        })
+    })
 })

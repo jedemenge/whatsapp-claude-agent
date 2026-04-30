@@ -57,6 +57,15 @@ export function parseMessage(msg: WAMessage): IncomingMessage | null {
     const addressingMode: 'pn' | 'lid' | undefined =
         rawAddressingMode === 'pn' || rawAddressingMode === 'lid' ? rawAddressingMode : undefined
 
+    // Pull WhatsApp's own mention list. WhatsApp resolves @-tags to JIDs
+    // client-side and ships them in extendedTextMessage.contextInfo, which is
+    // the authoritative source for "who was mentioned" — more reliable than
+    // re-parsing the text.
+    const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid
+    const mentions = Array.isArray(mentioned)
+        ? mentioned.filter((j): j is string => !!j)
+        : undefined
+
     return {
         id: key.id,
         from: key.remoteJid,
@@ -68,7 +77,8 @@ export function parseMessage(msg: WAMessage): IncomingMessage | null {
         fromAlt,
         participantAlt,
         addressingMode,
-        key
+        key,
+        mentions
     }
 }
 
